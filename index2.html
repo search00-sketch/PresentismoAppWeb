@@ -1,0 +1,2161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia</title>
+  <!-- Leaflet CSS para mapas -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- JSZip para archivos comprimidos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FileSaver para descargas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <!-- ExcelJS para exportar con imágenes -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --danger-color: #ea4335;
+      --warning-color: #fbbc05;
+      --success-color: #34a853;
+      --light-bg: #f8f9fa;
+      --dark-bg: #343a40;
+      --border-color: #dee2e6;
+      --text-color: #333;
+      --text-light: #6c757d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      color: var(--text-color);
+      background-color: #f0f2f5;
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 15px;
+      margin-bottom: 15px;
+      max-width: 1600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Header compacto */
+    header {
+      margin-bottom: 15px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .title-section {
+      flex: 1;
+      min-width: 0;
+    }
+
+    h1 {
+      color: var(--dark-bg);
+      font-size: 1.4rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .subtitle {
+      color: var(--text-light);
+      font-size: 0.85rem;
+      margin-top: 3px;
+    }
+
+    /* Filtros compactos */
+    .filters-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 8px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .filter-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--dark-bg);
+    }
+
+    .filter-group input,
+    .filter-group select {
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      transition: border-color 0.2s;
+      height: 34px;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+    }
+
+    /* Busqueda CORREGIDA - lupa bien posicionada */
+    .controls-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 10px 8px 35px !important; /* Más padding izquierdo para la lupa */
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      height: 34px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 0.9rem;
+      z-index: 1;
+      pointer-events: none; /* No interferir con el input */
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-success {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Modal de exportación */
+    .export-modal .modal-content {
+      max-width: 500px;
+    }
+
+    .export-options {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .export-option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .export-option-group label {
+      font-weight: 600;
+      color: var(--dark-bg);
+      font-size: 0.9rem;
+    }
+
+    .export-format-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .format-btn {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .format-btn:hover {
+      border-color: var(--primary-color);
+      background-color: #f0f7ff;
+    }
+
+    .format-btn.active {
+      border-color: var(--primary-color);
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .export-filename {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .export-stats {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .export-stats p {
+      margin: 5px 0;
+    }
+
+    .export-warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #856404;
+    }
+
+    .export-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .export-actions .btn {
+      flex: 1;
+    }
+
+    /* Mensaje de estado */
+    .status-message {
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .status-message.loading {
+      background-color: #e8f4fd;
+      color: #0c63e4;
+      border-left: 3px solid #0c63e4;
+    }
+
+    .status-message.success {
+      background-color: #d1f7dc;
+      color: #0a7227;
+      border-left: 3px solid var(--secondary-color);
+    }
+
+    .status-message.error {
+      background-color: #fde8e8;
+      color: #b02a37;
+      border-left: 3px solid var(--danger-color);
+    }
+
+    /* Tabla compacta */
+    .table-container {
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      max-height: 450px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      table-layout: fixed;
+    }
+
+    thead {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+      z-index: 10; /* Aseguramos que el header esté sobre los mapas */
+    }
+
+    th {
+      padding: 10px 6px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--dark-bg);
+      border-bottom: 2px solid var(--border-color);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background-color: #f8f9fa; /* Fondo sólido para el header */
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      padding: 8px 4px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      position: relative; /* Para posicionar elementos dentro */
+    }
+
+    tr:hover {
+      background-color: #f8f9fa;
+    }
+
+    /* Distribución de columnas */
+    .employee-cell {
+      width: 20%;
+      min-width: 0;
+    }
+
+    .jornada-cell {
+      width: 10%;
+    }
+
+    .date-cell {
+      width: 15%;
+    }
+
+    .time-cell {
+      width: 10%;
+    }
+
+    .map-cell {
+      width: 20%;
+      height: 50px;
+      position: relative;
+      z-index: 1; /* Nivel más bajo que el header */
+    }
+
+    .photo-cell {
+      width: 15%;
+    }
+
+    /* Jornada badge */
+    .jornada-badge {
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+    }
+
+    .jornada-badge.entrada {
+      background-color: rgba(52, 168, 83, 0.1);
+      color: var(--secondary-color);
+      border: 1px solid rgba(52, 168, 83, 0.2);
+    }
+
+    .jornada-badge.salida {
+      background-color: rgba(234, 67, 53, 0.1);
+      color: var(--danger-color);
+      border: 1px solid rgba(234, 67, 53, 0.2);
+    }
+
+    .jornada-badge.media {
+      background-color: rgba(251, 188, 5, 0.1);
+      color: var(--warning-color);
+      border: 1px solid rgba(251, 188, 5, 0.2);
+    }
+
+    /* Mini mapa CORREGIDO - no se superpone al header */
+    .mini-map {
+      width: 100%;
+      height: 100%;
+      min-height: 40px;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: transform 0.2s;
+      background: #f8f9fa;
+      position: relative;
+      z-index: 1; /* Nivel bajo */
+    }
+
+    .mini-map .leaflet-container {
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 1 !important; /* Nivel bajo para mapas */
+    }
+
+    .mini-map:hover {
+      transform: scale(1.03);
+      border-color: var(--primary-color);
+    }
+
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-light);
+      font-size: 0.65rem;
+      text-align: center;
+      padding: 0 4px;
+    }
+
+    /* Foto thumbnail */
+    .photo-thumbnail {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      overflow: hidden;
+      background-color: #f8f9fa;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 0 auto;
+    }
+
+    .photo-thumbnail:hover {
+      border-color: var(--primary-color);
+      transform: scale(1.05);
+    }
+
+    .photo-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Info empleado */
+    .employee-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .employee-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+      min-width: 26px;
+    }
+
+    .employee-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .employee-dni {
+      font-weight: 600;
+      color: var(--dark-bg);
+      font-size: 0.8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+
+    .employee-name {
+      font-size: 0.7rem;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.1;
+    }
+
+    /* Modal CORREGIDO - solo un modal activo a la vez */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 1001;
+    }
+
+    .modal-header {
+      padding: 14px 16px;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    .modal-close:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow: auto;
+      max-height: calc(90vh - 60px);
+    }
+
+    .photo-modal img {
+      max-width: 100%;
+      max-height: 60vh;
+      display: block;
+      margin: 0 auto;
+      border-radius: 6px;
+    }
+
+    .map-modal-content {
+      max-width: 500px;
+      height: 400px;
+    }
+
+    #full-map {
+      width: 100%;
+      height: 300px;
+      min-height: 300px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .google-maps-link {
+      display: block;
+      text-align: center;
+      padding: 10px;
+      background: var(--primary-color);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+
+    .google-maps-link:hover {
+      background-color: #3367d6;
+    }
+
+    /* Sin datos */
+    .no-data {
+      text-align: center;
+      padding: 30px 15px;
+      color: var(--text-light);
+    }
+
+    .no-data i {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 15px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-light);
+      font-size: 0.8rem;
+    }
+
+    /* ===== MEDIA QUERIES PARA MÓVIL (<650px) ===== */
+    @media (max-width: 650px) {
+      body {
+        padding: 8px;
+        font-size: 13px;
+      }
+      
+      .container {
+        padding: 12px;
+        border-radius: 8px;
+      }
+      
+      h1 {
+        font-size: 1.2rem;
+      }
+      
+      .subtitle {
+        font-size: 0.8rem;
+      }
+      
+      /* Filtros en columna para móvil */
+      .filters-container {
+        grid-template-columns: 1fr;
+        padding: 10px;
+        gap: 8px;
+      }
+      
+      .filter-group.full-width {
+        grid-column: 1;
+      }
+      
+      /* Botones en columna para móvil */
+      .controls-row {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .action-buttons {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+      
+      /* Tabla con scroll horizontal */
+      .table-container {
+        max-height: 400px;
+        border-radius: 6px;
+        overflow-x: auto;
+      }
+      
+      table {
+        font-size: 0.8rem;
+        min-width: 600px;
+        table-layout: fixed;
+      }
+      
+      /* Distribución en móvil */
+      .employee-cell {
+        width: 22%;
+        min-width: 120px;
+      }
+      
+      .jornada-cell {
+        width: 10%;
+        min-width: 60px;
+      }
+      
+      .date-cell {
+        width: 15%;
+        min-width: 80px;
+      }
+      
+      .time-cell {
+        width: 10%;
+        min-width: 60px;
+      }
+      
+      .map-cell {
+        width: 23%;
+        min-width: 100px;
+        height: 45px;
+      }
+      
+      .photo-cell {
+        width: 10%;
+        min-width: 50px;
+      }
+      
+      th {
+        padding: 8px 4px;
+        font-size: 0.75rem;
+        z-index: 10;
+      }
+      
+      td {
+        padding: 6px 3px;
+      }
+      
+      /* Modal de exportación en móvil */
+      .export-modal .modal-content {
+        max-width: 95%;
+      }
+      
+      .export-format-buttons {
+        flex-direction: column;
+      }
+      
+      .export-actions {
+        flex-direction: column;
+      }
+    }
+
+    /* Loader para exportación */
+    .loader {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .loader.active {
+      display: block;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #4285f4;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Clase para ocultar elementos */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-row">
+        <div class="title-section">
+          <h1>📋 Control de Asistencia</h1>
+          <p class="subtitle">Registro de entradas y salidas</p>
+        </div>
+        <div id="last-update" style="color: var(--text-light); font-size: 0.85rem;">
+          --:--
+        </div>
+      </div>
+    </header>
+
+    <div class="filters-container">
+      <div class="filter-group full-width">
+        <label for="search-input">Buscar empleado</label>
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="DNI o nombre...">
+        </div>
+      </div>
+      
+      <div class="filter-group">
+        <label for="date-filter">Fecha</label>
+        <input type="date" id="date-filter">
+      </div>
+      
+      <div class="filter-group">
+        <label for="shift-filter">Tipo</label>
+        <select id="shift-filter">
+          <option value="all">Todos</option>
+          <option value="entrada">Entradas</option>
+          <option value="salida">Salidas</option>
+          <option value="media">Media Jornada</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="time-start">Desde</label>
+        <input type="time" id="time-start">
+      </div>
+      
+      <div class="filter-group">
+        <label for="time-end">Hasta</label>
+        <input type="time" id="time-end">
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="action-buttons">
+        <button class="btn btn-secondary" id="reset-filters">
+          🔄 Limpiar
+        </button>
+        <button class="btn btn-primary" id="apply-filters">
+          ✅ Aplicar
+        </button>
+        <button class="btn btn-success" id="export-btn">
+          📥 Exportar
+        </button>
+      </div>
+    </div>
+
+    <div class="status-message loading" id="status-message">
+      ⏳ Conectando...
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th class="employee-cell">Empleado</th>
+            <th class="jornada-cell">Tipo</th>
+            <th class="date-cell">Fecha</th>
+            <th class="time-cell">Hora</th>
+            <th class="map-cell">Ubicación</th>
+            <th class="photo-cell">Foto</th>
+          </tr>
+        </thead>
+        <tbody id="registros-body"></tbody>
+      </table>
+    </div>
+
+    <div id="no-data-message" class="no-data" style="display: none;">
+      📭<br>
+      No hay registros
+    </div>
+  </div>
+
+  <!-- Modals - SOLO UNO VISIBLE A LA VEZ -->
+  <div class="modal" id="photo-modal">
+    <div class="modal-content photo-modal">
+      <div class="modal-header">
+        <h3>Foto del Registro</h3>
+        <button class="modal-close" id="close-photo-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-photo" src="" alt="Foto ampliada">
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="map-modal">
+    <div class="modal-content map-modal-content">
+      <div class="modal-header">
+        <h3>Ubicación del Registro</h3>
+        <button class="modal-close" id="close-map-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="full-map"></div>
+        <a id="google-maps-link" class="google-maps-link" target="_blank">
+          📍 Abrir en Google Maps
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Exportación -->
+  <div class="modal export-modal" id="export-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📥 Exportar Registros</h3>
+        <button class="modal-close" id="close-export-modal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="loader" id="export-loader">
+          <div class="spinner"></div>
+          <p>Generando Excel con imágenes...</p>
+          <p id="progress-text">Procesando imágenes: 0/0</p>
+        </div>
+        
+        <div class="export-options" id="export-options">
+          <div class="export-option-group">
+            <label>Formato de archivo:</label>
+            <div class="export-format-buttons">
+              <button class="format-btn active" data-format="excel">
+                📊 Excel con imágenes
+              </button>
+              <button class="format-btn" data-format="zip">
+                📁 ZIP Completo
+              </button>
+            </div>
+          </div>
+          
+          <div class="export-option-group">
+            <label>Nombre del archivo:</label>
+            <input type="text" id="export-filename" class="export-filename" 
+                   value="registros-asistencia" placeholder="Nombre del archivo">
+          </div>
+          
+          <div class="export-option-group">
+            <label>Datos a exportar:</label>
+            <div class="export-stats">
+              <p><strong>Registros a exportar:</strong> <span id="export-count-display">0</span></p>
+              <p><strong>Total en sistema:</strong> <span id="total-count-display">0</span></p>
+              <p><strong>Imágenes encontradas:</strong> <span id="image-count-display">0</span></p>
+              <p><strong>Fecha de exportación:</strong> <span id="export-date-display"></span></p>
+            </div>
+          </div>
+
+          <div class="export-warning" id="excel-warning">
+            ⚠️ <strong>Excel con imágenes:</strong> Las imágenes se insertarán en tamaño 100x70px directamente en las celdas del Excel.
+          </div>
+          
+          <div class="export-warning" id="zip-warning" style="display: none;">
+            ⚠️ <strong>ZIP Completo:</strong> Contiene Excel con imágenes + imágenes originales en carpeta "fotos".
+          </div>
+          
+          <div class="export-actions">
+            <button class="btn btn-secondary" id="cancel-export">
+              Cancelar
+            </button>
+            <button class="btn btn-success" id="confirm-export">
+              Descargar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Sistema de control de asistencia | Última actualización: <span id="current-time"></span></p>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script type="module">
+    console.log("🚀 Inicializando sistema...");
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      onSnapshot,
+      query,
+      orderBy,
+      Timestamp
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_S88U5eNwZGUUT2tqt5IdpXAF8U18DZs",
+      authDomain: "studio-389789246-1be00.firebaseapp.com",
+      projectId: "studio-389789246-1be00"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Cache de empleados argentinos
+    const empleadosCache = {
+      "30123456": { nombre: "Carlos Rodríguez", area: "Producción" },
+      "28901234": { nombre: "Ana Martínez", area: "Administración" },
+      "32123456": { nombre: "Juan Pérez", area: "Ventas" },
+      "34567890": { nombre: "María García", area: "Logística" },
+      "29876543": { nombre: "Diego López", area: "Producción" },
+      "33445566": { nombre: "Laura Fernández", area: "RRHH" },
+      "31223344": { nombre: "Pedro Sánchez", area: "Ventas" },
+      "28765432": { nombre: "Sofía González", area: "Administración" },
+      "30987654": { nombre: "Miguel Díaz", area: "Logística" },
+      "32654321": { nombre: "Carolina Romero", area: "Ventas" },
+      "29345678": { nombre: "Roberto Álvarez", area: "Producción" },
+      "33567890": { nombre: "Lucía Torres", area: "RRHH" }
+    };
+
+    // Elementos DOM
+    const elements = {
+      tbody: document.getElementById('registros-body'),
+      status: document.getElementById('status-message'),
+      lastUpdate: document.getElementById('last-update'),
+      noData: document.getElementById('no-data-message'),
+      search: document.getElementById('search-input'),
+      currentTime: document.getElementById('current-time'),
+      dateFilter: document.getElementById('date-filter'),
+      timeStart: document.getElementById('time-start'),
+      timeEnd: document.getElementById('time-end'),
+      shiftFilter: document.getElementById('shift-filter'),
+      applyBtn: document.getElementById('apply-filters'),
+      resetBtn: document.getElementById('reset-filters'),
+      exportBtn: document.getElementById('export-btn'),
+      photoModal: document.getElementById('photo-modal'),
+      mapModal: document.getElementById('map-modal'),
+      exportModal: document.getElementById('export-modal'),
+      closePhoto: document.getElementById('close-photo-modal'),
+      closeMap: document.getElementById('close-map-modal'),
+      closeExport: document.getElementById('close-export-modal'),
+      modalPhoto: document.getElementById('modal-photo'),
+      fullMap: document.getElementById('full-map'),
+      googleMapsLink: document.getElementById('google-maps-link'),
+      exportFilename: document.getElementById('export-filename'),
+      exportCountDisplay: document.getElementById('export-count-display'),
+      totalCountDisplay: document.getElementById('total-count-display'),
+      exportDateDisplay: document.getElementById('export-date-display'),
+      imageCountDisplay: document.getElementById('image-count-display'),
+      cancelExport: document.getElementById('cancel-export'),
+      confirmExport: document.getElementById('confirm-export'),
+      formatButtons: document.querySelectorAll('.format-btn'),
+      excelWarning: document.getElementById('excel-warning'),
+      zipWarning: document.getElementById('zip-warning'),
+      exportLoader: document.getElementById('export-loader'),
+      exportOptions: document.getElementById('export-options'),
+      progressText: document.getElementById('progress-text')
+    };
+
+    // Estado
+    let allRegistrations = [];
+    let filteredRegistrations = [];
+    let currentSearch = '';
+    let currentDateFilter = '';
+    let currentTimeStart = '';
+    let currentTimeEnd = '';
+    let currentShiftFilter = 'all';
+    let fullMap = null;
+    let currentLatLng = null;
+    let exportFormat = 'excel';
+    let mapInstances = new Map();
+    let modalQueue = []; // Cola para manejar múltiples modales
+    let activeModal = null; // Modal activo actualmente
+
+    // Configuración
+    const COLLECTION_NAME = "registrations";
+
+    // Convertir UTC a Argentina
+    function convertirUTCaArgentina(dateUTC) {
+      if (!dateUTC) return null;
+      
+      try {
+        let date;
+        if (dateUTC instanceof Timestamp) {
+          date = dateUTC.toDate();
+        } else if (dateUTC.toDate && typeof dateUTC.toDate === 'function') {
+          date = dateUTC.toDate();
+        } else if (typeof dateUTC === 'number') {
+          date = new Date(dateUTC);
+        } else {
+          date = dateUTC;
+        }
+        
+        // Argentina UTC-3
+        const offsetArgentina = -3 * 60;
+        const localOffset = date.getTimezoneOffset();
+        return new Date(date.getTime() + (localOffset + offsetArgentina) * 60000);
+      } catch (error) {
+        console.error("Error convirtiendo hora:", error);
+        return dateUTC;
+      }
+    }
+
+    // Determinar tipo de jornada
+    function determinarTipoJornada(data) {
+      if (data.shift) {
+        const shiftValue = data.shift.toLowerCase().trim();
+        if (shiftValue === 'start' || shiftValue === 'inicio' || shiftValue === 'entrada') {
+          return 'entrada';
+        } else if (shiftValue === 'end' || shiftValue === 'fin' || shiftValue === 'salida') {
+          return 'salida';
+        } else if (shiftValue === 'half' || shiftValue === 'media' || shiftValue === 'media jornada') {
+          return 'media';
+        }
+      }
+      
+      if (data.createdAt) {
+        try {
+          const date = convertirUTCaArgentina(data.createdAt);
+          if (date) {
+            const hora = date.getHours();
+            if (hora < 10) {
+              return 'entrada';
+            } else if (hora >= 10 && hora < 14) {
+              return 'media';
+            } else {
+              return 'salida';
+            }
+          }
+        } catch (e) {}
+      }
+      
+      return 'desconocido';
+    }
+
+    // Formatear fecha y hora
+    function formatearFechaHora(dateValue) {
+      if (!dateValue) return { date: "N/A", time: "N/A" };
+      
+      try {
+        const date = convertirUTCaArgentina(dateValue);
+        if (!date || isNaN(date.getTime())) {
+          return { date: "N/A", time: "N/A" };
+        }
+        
+        return {
+          date: date.toLocaleDateString("es-AR", {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          }),
+          time: date.toLocaleTimeString("es-AR", {
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        };
+      } catch (error) {
+        return { date: "Error", time: "" };
+      }
+    }
+
+    // Obtener nombre del empleado
+    function obtenerNombreEmpleado(dni) {
+      if (!dni) return 'Empleado';
+      
+      if (empleadosCache[dni]) {
+        return empleadosCache[dni].nombre;
+      }
+      
+      return dni;
+    }
+
+    // Función para verificar si es una imagen válida
+    function esImagenValida(base64String) {
+      if (!base64String || typeof base64String !== 'string') {
+        return false;
+      }
+      
+      const imageFormats = [
+        'data:image/jpeg', 
+        'data:image/png', 
+        'data:image/gif',
+        'data:image/webp',
+        'data:image/bmp',
+        'http://', 
+        'https://'
+      ];
+      
+      for (const format of imageFormats) {
+        if (base64String.startsWith(format)) {
+          return true;
+        }
+      }
+      
+      if (base64String.length > 100) {
+        try {
+          atob(base64String.substring(0, 100));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      
+      return false;
+    }
+
+    // Crear mini mapa HTML - CORREGIDO: z-index más bajo
+    function crearMiniMapaHTML(lat, lng, id) {
+      if (!lat || !lng) {
+        return '<div class="map-placeholder">Sin ubicación</div>';
+      }
+      
+      const mapContainerId = `map-${id}`;
+      return `<div id="${mapContainerId}" class="mini-map" data-lat="${lat}" data-lng="${lng}" style="z-index: 1;"></div>`;
+    }
+
+    // Inicializar mini mapa - CORREGIDO: asegurar z-index bajo
+    function inicializarMiniMapa(id, lat, lng) {
+      const mapContainerId = `map-${id}`;
+      const element = document.getElementById(mapContainerId);
+      
+      if (!element || !lat || !lng || mapInstances.has(mapContainerId)) return;
+      
+      try {
+        setTimeout(() => {
+          if (!document.getElementById(mapContainerId)) return;
+          
+          const map = L.map(mapContainerId, {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            tap: false,
+            boxZoom: false,
+            doubleClickZoom: false,
+            touchZoom: false
+          }).setView([lat, lng], 15);
+          
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap, © CartoDB',
+            maxZoom: 18,
+            minZoom: 10
+          }).addTo(map);
+          
+          L.marker([lat, lng], {
+            icon: L.divIcon({
+              html: '<div style="background:#4285f4;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>',
+              iconSize: [16, 16],
+              className: 'leaflet-marker-mini'
+            })
+          }).addTo(map);
+          
+          mapInstances.set(mapContainerId, map);
+          
+          element.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirMapaModal(lat, lng);
+          });
+          
+          // Asegurar que el mapa tenga z-index bajo
+          element.style.zIndex = '1';
+          if (map._container) {
+            map._container.style.zIndex = '1';
+          }
+          
+          setTimeout(() => {
+            if (map) map.invalidateSize();
+          }, 100);
+          
+        }, 100);
+      } catch (error) {
+        console.error("Error inicializando mini mapa:", error);
+      }
+    }
+
+    // Limpiar mapas viejos
+    function limpiarMapasViejos() {
+      mapInstances.forEach((map, id) => {
+        if (!document.getElementById(id)) {
+          map.remove();
+          mapInstances.delete(id);
+        }
+      });
+    }
+
+    // FUNCIÓN CORREGIDA: Cerrar todos los modales
+    function cerrarTodosModales() {
+      elements.photoModal.classList.remove('active');
+      elements.mapModal.classList.remove('active');
+      elements.exportModal.classList.remove('active');
+      
+      if (fullMap) {
+        fullMap.remove();
+        fullMap = null;
+      }
+      
+      currentLatLng = null;
+      activeModal = null;
+      
+      // Limpiar la cola
+      modalQueue = [];
+    }
+
+    // FUNCIÓN CORREGIDA: Mostrar un modal específico
+    function mostrarModal(modalElement) {
+      // Cerrar cualquier modal activo primero
+      cerrarTodosModales();
+      
+      // Mostrar el nuevo modal
+      modalElement.classList.add('active');
+      activeModal = modalElement;
+      
+      // Bloquear el scroll del body
+      document.body.style.overflow = 'hidden';
+    }
+
+    // FUNCIÓN CORREGIDA: Cerrar modal actual
+    function cerrarModalActual() {
+      if (activeModal) {
+        activeModal.classList.remove('active');
+        
+        if (fullMap && activeModal === elements.mapModal) {
+          fullMap.remove();
+          fullMap = null;
+        }
+        
+        activeModal = null;
+      }
+      
+      // Restaurar scroll del body
+      document.body.style.overflow = '';
+      
+      // Verificar si hay modales en la cola
+      if (modalQueue.length > 0) {
+        const nextModal = modalQueue.shift();
+        mostrarModal(nextModal);
+      }
+    }
+
+    // FUNCIÓN CORREGIDA: Abrir modal de mapa
+    function abrirMapaModal(lat, lng) {
+      currentLatLng = { lat, lng };
+      
+      const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=15`;
+      elements.googleMapsLink.href = googleMapsUrl;
+      
+      mostrarModal(elements.mapModal);
+      
+      setTimeout(() => {
+        fullMap = L.map('full-map').setView([lat, lng], 15);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(fullMap);
+        
+        L.marker([lat, lng]).addTo(fullMap)
+          .bindPopup('Ubicación registrada')
+          .openPopup();
+        
+        fullMap.invalidateSize();
+      }, 50);
+    }
+
+    // FUNCIÓN CORREGIDA: Abrir modal de foto - SIN PROBLEMAS DE MÚLTIPLES MODALES
+    function abrirFotoModal(photoUrl, dni, fecha) {
+      // Limpiar contenido anterior
+      const modalBody = elements.photoModal.querySelector('.modal-body');
+      modalBody.innerHTML = '';
+      
+      // Crear nueva imagen
+      const img = document.createElement('img');
+      img.id = 'modal-photo';
+      img.alt = `Foto de ${dni} - ${fecha}`;
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '60vh';
+      img.style.display = 'block';
+      img.style.margin = '0 auto';
+      img.style.borderRadius = '6px';
+      
+      img.onload = function() {
+        console.log('Imagen cargada exitosamente');
+      };
+      
+      img.onerror = function() {
+        img.style.display = 'none';
+        modalBody.innerHTML = '<p style="text-align: center; color: #dc3545; padding: 40px;">⚠️ Error al cargar la imagen<br><small>La imagen puede estar dañada o en formato no compatible</small></p>';
+      };
+      
+      img.src = photoUrl;
+      modalBody.appendChild(img);
+      
+      mostrarModal(elements.photoModal);
+    }
+
+    // Aplicar filtros
+    function aplicarFiltros() {
+      filteredRegistrations = allRegistrations.filter(reg => {
+        if (currentSearch) {
+          const searchTerm = currentSearch.toLowerCase();
+          if (!reg.dni.toLowerCase().includes(searchTerm) && 
+              !reg.nombre.toLowerCase().includes(searchTerm)) {
+            return false;
+          }
+        }
+        
+        if (currentShiftFilter !== 'all' && reg.tipo !== currentShiftFilter) {
+          return false;
+        }
+        
+        if (currentDateFilter && reg.fechaArgentina) {
+          const filterDate = new Date(currentDateFilter);
+          const regDate = reg.fechaArgentina;
+          
+          if (filterDate.toDateString() !== regDate.toDateString()) {
+            return false;
+          }
+        }
+        
+        if (reg.horaArgentina) {
+          const regTime = reg.horaArgentina;
+          
+          if (currentTimeStart) {
+            const [startHour, startMinute] = currentTimeStart.split(':').map(Number);
+            if (regTime.hour < startHour || 
+                (regTime.hour === startHour && regTime.minute < startMinute)) {
+              return false;
+            }
+          }
+          
+          if (currentTimeEnd) {
+            const [endHour, endMinute] = currentTimeEnd.split(':').map(Number);
+            if (regTime.hour > endHour || 
+                (regTime.hour === endHour && regTime.minute > endMinute)) {
+              return false;
+            }
+          }
+        }
+        
+        return true;
+      });
+      
+      renderizarRegistros();
+    }
+
+    // Renderizar registros - MEJORADO con z-index para mapas
+    function renderizarRegistros() {
+      elements.tbody.innerHTML = '';
+      
+      if (filteredRegistrations.length === 0) {
+        elements.noData.style.display = 'block';
+        return;
+      }
+      
+      elements.noData.style.display = 'none';
+      
+      filteredRegistrations.sort((a, b) => b.timestamp - a.timestamp);
+      
+      filteredRegistrations.forEach((reg, index) => {
+        const id = `reg-${Date.now()}-${index}`;
+        const tr = document.createElement('tr');
+        
+        let fotoHTML = '<div class="photo-placeholder">Sin foto</div>';
+        let fotoURL = '';
+        
+        if (reg.foto) {
+          try {
+            if (reg.foto.startsWith('http://') || reg.foto.startsWith('https://')) {
+              fotoURL = reg.foto;
+              fotoHTML = `<img src="${reg.foto}" alt="Foto" loading="lazy" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\'text-align:center;padding:10px;color:#666;font-size:11px;\'>Error imagen</div>';">`;
+            } else if (reg.foto.startsWith('data:image')) {
+              fotoURL = reg.foto;
+              fotoHTML = `<img src="${reg.foto}" alt="Foto" loading="lazy">`;
+            } else if (reg.foto.length > 100) {
+              const base64Regex = /^[A-Za-z0-9+/]+={0,2}$/;
+              if (base64Regex.test(reg.foto) || reg.foto.length > 500) {
+                fotoURL = `data:image/jpeg;base64,${reg.foto}`;
+                fotoHTML = `<img src="${fotoURL}" alt="Foto" loading="lazy" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\'text-align:center;padding:10px;color:#666;font-size:11px;\'>Formato no válido</div>';">`;
+              }
+            }
+          } catch (e) {
+            console.error("Error procesando imagen:", e);
+            fotoHTML = '<div class="photo-placeholder">Error</div>';
+          }
+        }
+        
+        const dni = reg.dni || '??';
+        const iniciales = dni.substring(0, 2).toUpperCase();
+        
+        let tipoTexto = '';
+        let tipoClase = '';
+        switch(reg.tipo) {
+          case 'entrada':
+            tipoTexto = 'ENTRADA';
+            tipoClase = 'entrada';
+            break;
+          case 'salida':
+            tipoTexto = 'SALIDA';
+            tipoClase = 'salida';
+            break;
+          case 'media':
+            tipoTexto = 'MEDIA';
+            tipoClase = 'media';
+            break;
+          default:
+            tipoTexto = 'OTRO';
+            tipoClase = 'salida';
+        }
+        
+        tr.innerHTML = `
+          <td class="employee-cell">
+            <div class="employee-info">
+              <div class="employee-avatar">${iniciales}</div>
+              <div class="employee-details">
+                <div class="employee-dni">${dni}</div>
+                <div class="employee-name">${reg.nombre}</div>
+              </div>
+            </div>
+          </td>
+          <td class="jornada-cell">
+            <span class="jornada-badge ${tipoClase}">${tipoTexto}</span>
+          </td>
+          <td class="date-cell">${reg.fecha}</td>
+          <td class="time-cell">${reg.hora}</td>
+          <td class="map-cell" style="z-index: 1;">
+            ${crearMiniMapaHTML(reg.lat, reg.lng, id)}
+          </td>
+          <td class="photo-cell">
+            ${fotoURL ? 
+              `<div class="photo-thumbnail">
+                ${fotoHTML}
+              </div>` : 
+              '<div class="photo-placeholder">Sin foto</div>'
+            }
+          </td>
+        `;
+        
+        elements.tbody.appendChild(tr);
+        
+        if (reg.lat && reg.lng) {
+          setTimeout(() => inicializarMiniMapa(id, reg.lat, reg.lng), 300);
+        }
+        
+        if (fotoURL) {
+          const thumbnail = tr.querySelector('.photo-thumbnail');
+          if (thumbnail) {
+            thumbnail.addEventListener('click', (e) => {
+              e.stopPropagation();
+              abrirFotoModal(fotoURL, dni, reg.fecha);
+            });
+          }
+        }
+      });
+      
+      setTimeout(limpiarMapasViejos, 500);
+    }
+
+    // Actualizar estado
+    function actualizarEstado(tipo, mensaje) {
+      elements.status.className = `status-message ${tipo}`;
+      const icono = tipo === 'loading' ? '⏳' : tipo === 'success' ? '✅' : '❌';
+      elements.status.innerHTML = `${icono} ${mensaje}`;
+    }
+
+    // Resetear filtros
+    function resetearFiltros() {
+      elements.search.value = '';
+      elements.dateFilter.value = '';
+      elements.timeStart.value = '';
+      elements.timeEnd.value = '';
+      elements.shiftFilter.value = 'all';
+      
+      currentSearch = '';
+      currentDateFilter = '';
+      currentTimeStart = '';
+      currentTimeEnd = '';
+      currentShiftFilter = 'all';
+      
+      aplicarFiltros();
+    }
+
+    // FUNCIONES DE EXPORTACIÓN (se mantienen igual)
+    function contarImagenes() {
+      let count = 0;
+      filteredRegistrations.forEach(reg => {
+        if (esImagenValida(reg.foto)) {
+          count++;
+        }
+      });
+      return count;
+    }
+
+    function crearImagenRedimensionada(base64Image) {
+      return new Promise((resolve, reject) => {
+        if (!base64Image || !esImagenValida(base64Image)) {
+          resolve(null);
+          return;
+        }
+        
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        const timeout = setTimeout(() => {
+          console.warn('Timeout procesando imagen');
+          resolve(null);
+        }, 8000);
+        
+        img.onload = function() {
+          clearTimeout(timeout);
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const targetWidth = 100;
+            const targetHeight = 70;
+            
+            const imgAspect = img.width / img.height;
+            const targetAspect = targetWidth / targetHeight;
+            
+            let drawWidth, drawHeight, offsetX, offsetY;
+            
+            if (imgAspect > targetAspect) {
+              drawHeight = targetHeight;
+              drawWidth = targetHeight * imgAspect;
+              offsetX = (targetWidth - drawWidth) / 2;
+              offsetY = 0;
+            } else {
+              drawWidth = targetWidth;
+              drawHeight = targetWidth / imgAspect;
+              offsetX = 0;
+              offsetY = (targetHeight - drawHeight) / 2;
+            }
+            
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+            
+            ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            
+            const imagenRedimensionada = canvas.toDataURL('image/jpeg', 0.85);
+            resolve(imagenRedimensionada);
+            
+          } catch (canvasError) {
+            console.error('Error en canvas:', canvasError);
+            resolve(null);
+          }
+        };
+        
+        img.onerror = function() {
+          clearTimeout(timeout);
+          console.error('Error cargando imagen para redimensionar');
+          resolve(null);
+        };
+        
+        try {
+          if (base64Image.startsWith('data:')) {
+            img.src = base64Image;
+          } else if (base64Image.startsWith('http')) {
+            img.src = base64Image;
+          } else {
+            img.src = 'data:image/jpeg;base64,' + base64Image;
+          }
+        } catch (srcError) {
+          console.error('Error estableciendo src de imagen:', srcError);
+          resolve(null);
+        }
+      });
+    }
+
+    function mostrarLoaderExportacion() {
+      elements.exportLoader.classList.add('active');
+      elements.exportOptions.style.display = 'none';
+    }
+
+    function ocultarLoaderExportacion() {
+      elements.exportLoader.classList.remove('active');
+      elements.exportOptions.style.display = 'block';
+    }
+
+    function actualizarProgreso(current, total) {
+      elements.progressText.textContent = `Procesando imágenes: ${current}/${total}`;
+    }
+
+    async function exportarExcelConImagenes() {
+      try {
+        mostrarLoaderExportacion();
+        
+        const nombreArchivo = elements.exportFilename.value || 'registros-asistencia';
+        const fecha = new Date().toISOString().split('T')[0];
+        const nombreFinal = `${nombreArchivo}-${fecha}.xlsx`;
+        
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Sistema de Control de Asistencia';
+        workbook.created = new Date();
+        
+        const worksheet = workbook.addWorksheet('Registros', {
+          views: [{ state: 'frozen', ySplit: 1 }],
+          pageSetup: { fitToPage: true }
+        });
+        
+        worksheet.columns = [
+          { header: 'Nº', key: 'numero', width: 6 },
+          { header: 'DNI', key: 'dni', width: 12 },
+          { header: 'Nombre', key: 'nombre', width: 25 },
+          { header: 'Tipo', key: 'tipo', width: 12 },
+          { header: 'Fecha', key: 'fecha', width: 12 },
+          { header: 'Hora', key: 'hora', width: 10 },
+          { header: 'Latitud', key: 'lat', width: 12 },
+          { header: 'Longitud', key: 'lng', width: 12 },
+          { header: 'Imagen', key: 'imagen', width: 15 }
+        ];
+        
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF4285F4' }
+        };
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        headerRow.height = 25;
+        
+        worksheet.properties.defaultRowHeight = 70;
+        
+        const totalImagenes = contarImagenes();
+        let imagenesProcesadas = 0;
+        let imagenesConExito = 0;
+        
+        const registrosConImagenes = [];
+        
+        for (let i = 0; i < filteredRegistrations.length; i++) {
+          const reg = filteredRegistrations[i];
+          
+          let tipoTexto = '';
+          switch(reg.tipo) {
+            case 'entrada':
+              tipoTexto = 'ENTRADA';
+              break;
+            case 'salida':
+              tipoTexto = 'SALIDA';
+              break;
+            case 'media':
+              tipoTexto = 'MEDIA JORNADA';
+              break;
+            default:
+              tipoTexto = 'DESCONOCIDO';
+          }
+          
+          const rowNumber = i + 2;
+          const row = worksheet.addRow({
+            numero: i + 1,
+            dni: reg.dni || '',
+            nombre: reg.nombre || '',
+            tipo: tipoTexto,
+            fecha: reg.fecha || '',
+            hora: reg.hora || '',
+            lat: reg.lat || '',
+            lng: reg.lng || '',
+            imagen: esImagenValida(reg.foto) ? 'CARGANDO...' : 'SIN IMAGEN'
+          });
+          
+          row.height = 70;
+          
+          row.eachCell((cell) => {
+            cell.alignment = { 
+              vertical: 'middle',
+              horizontal: 'center',
+              wrapText: true
+            };
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+            cell.font = { size: 10 };
+          });
+          
+          if (esImagenValida(reg.foto)) {
+            registrosConImagenes.push({
+              rowIndex: i,
+              rowNumber: rowNumber,
+              fotoData: reg.foto
+            });
+          } else {
+            const imagenCell = worksheet.getCell(`I${rowNumber}`);
+            imagenCell.value = 'SIN IMAGEN';
+            imagenCell.font = { 
+              color: { argb: 'FF999999' }, 
+              size: 9,
+              italic: true
+            };
+          }
+        }
+        
+        console.log(`Procesando ${registrosConImagenes.length} imágenes...`);
+        
+        for (let i = 0; i < registrosConImagenes.length; i++) {
+          const registro = registrosConImagenes[i];
+          imagenesProcesadas++;
+          actualizarProgreso(imagenesProcesadas, totalImagenes);
+          
+          try {
+            const imagenRedimensionada = await crearImagenRedimensionada(registro.fotoData);
+            
+            if (imagenRedimensionada) {
+              const base64Data = imagenRedimensionada.split(',')[1];
+              
+              if (base64Data) {
+                try {
+                  const imagenId = workbook.addImage({
+                    base64: base64Data,
+                    extension: 'jpeg'
+                  });
+                  
+                  worksheet.addImage(imagenId, {
+                    tl: { col: 8, row: registro.rowNumber - 1 },
+                    br: { col: 9, row: registro.rowNumber },
+                    editAs: 'oneCell'
+                  });
+                  
+                  const imagenCell = worksheet.getCell(`I${registro.rowNumber}`);
+                  imagenCell.value = '';
+                  
+                  imagenesConExito++;
+                  console.log(`✓ Imagen insertada en fila ${registro.rowNumber}`);
+                  
+                } catch (imgError) {
+                  console.error(`Error insertando imagen en fila ${registro.rowNumber}:`, imgError);
+                  const imagenCell = worksheet.getCell(`I${registro.rowNumber}`);
+                  imagenCell.value = 'ERROR INSERCIÓN';
+                  imagenCell.font = { 
+                    color: { argb: 'FFFF0000' }, 
+                    size: 8,
+                    bold: true 
+                  };
+                }
+              } else {
+                throw new Error('Base64 inválido');
+              }
+            } else {
+              throw new Error('Imagen no redimensionada');
+            }
+            
+          } catch (error) {
+            console.error(`Error procesando imagen ${i + 1}:`, error);
+            const imagenCell = worksheet.getCell(`I${registro.rowNumber}`);
+            imagenCell.value = 'ERROR PROCESAR';
+            imagenCell.font = { 
+              color: { argb: 'FFFF6600' }, 
+              size: 8,
+              italic: true
+            };
+          }
+          
+          if (i % 5 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        }
+        
+        worksheet.getColumn('I').width = 20;
+        
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
+        saveAs(blob, nombreFinal);
+        
+        console.log(`✅ Exportación completada: ${nombreFinal}`);
+        console.log(`   - Total registros: ${filteredRegistrations.length}`);
+        console.log(`   - Imágenes procesadas: ${imagenesConExito}/${totalImagenes}`);
+        
+        ocultarLoaderExportacion();
+        return true;
+        
+      } catch (error) {
+        console.error('❌ Error crítico exportando Excel:', error);
+        ocultarLoaderExportacion();
+        
+        if (error.message.includes('addImage')) {
+          alert('❌ Error al insertar imágenes. Verifique que las imágenes sean válidas.');
+        } else {
+          alert(`❌ Error al exportar: ${error.message}`);
+        }
+        
+        return false;
+      }
+    }
+
+    function mostrarModalExportacion() {
+      const fechaActual = new Date().toLocaleDateString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      const totalImagenes = contarImagenes();
+      
+      elements.exportCountDisplay.textContent = filteredRegistrations.length;
+      elements.totalCountDisplay.textContent = allRegistrations.length;
+      elements.exportDateDisplay.textContent = fechaActual;
+      elements.imageCountDisplay.textContent = totalImagenes;
+      
+      const fechaArchivo = new Date().toISOString().split('T')[0];
+      elements.exportFilename.value = `registros-asistencia`;
+      
+      elements.excelWarning.style.display = exportFormat === 'excel' ? 'block' : 'none';
+      elements.zipWarning.style.display = exportFormat === 'zip' ? 'block' : 'none';
+      
+      mostrarModal(elements.exportModal);
+    }
+
+    async function ejecutarExportacion() {
+      try {
+        if (filteredRegistrations.length === 0) {
+          alert('❌ No hay registros para exportar. Ajuste los filtros si es necesario.');
+          return;
+        }
+        
+        console.log('Iniciando exportación...', {
+          registros: filteredRegistrations.length,
+          formato: exportFormat
+        });
+        
+        elements.confirmExport.disabled = true;
+        elements.confirmExport.innerHTML = '⏳ Generando...';
+        
+        elements.cancelExport.disabled = true;
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (exportFormat === 'excel') {
+          console.log('Exportando Excel con imágenes 100x70px...');
+          const exito = await exportarExcelConImagenes();
+          
+          if (exito) {
+            setTimeout(() => {
+              alert(`✅ Exportación completada exitosamente\n\n• Archivo: Excel con imágenes incrustadas\n• Registros exportados: ${filteredRegistrations.length}\n• Tamaño de imágenes: 100x70px\n\nEl archivo se descargará automáticamente.`);
+              cerrarModalActual();
+            }, 500);
+          } else {
+            alert('❌ Error al exportar los datos. Por favor, intente nuevamente.');
+          }
+          
+        } else if (exportFormat === 'zip') {
+          alert('⚠️ La opción ZIP estará disponible en la próxima actualización.\n\nPor ahora se descargará solo el Excel.');
+          const exito = await exportarExcelConImagenes();
+          
+          if (exito) {
+            alert(`✅ Excel exportado correctamente`);
+            cerrarModalActual();
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error en ejecutarExportacion:', error);
+        alert(`❌ Error crítico al exportar: ${error.message}\n\nPor favor, intente con menos registros o verifique las imágenes.`);
+      } finally {
+        elements.confirmExport.disabled = false;
+        elements.confirmExport.innerHTML = 'Descargar';
+        elements.cancelExport.disabled = false;
+      }
+    }
+
+    // Event Listeners CORREGIDOS
+    elements.search.addEventListener('input', (e) => {
+      currentSearch = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.dateFilter.addEventListener('change', (e) => {
+      currentDateFilter = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.timeStart.addEventListener('change', (e) => {
+      currentTimeStart = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.timeEnd.addEventListener('change', (e) => {
+      currentTimeEnd = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.shiftFilter.addEventListener('change', (e) => {
+      currentShiftFilter = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.applyBtn.addEventListener('click', aplicarFiltros);
+    elements.resetBtn.addEventListener('click', resetearFiltros);
+    elements.exportBtn.addEventListener('click', mostrarModalExportacion);
+    
+    // Eventos para cerrar modales - CORREGIDOS
+    elements.closePhoto.addEventListener('click', cerrarModalActual);
+    elements.closeMap.addEventListener('click', cerrarModalActual);
+    elements.closeExport.addEventListener('click', cerrarModalActual);
+    elements.cancelExport.addEventListener('click', cerrarModalActual);
+    elements.confirmExport.addEventListener('click', ejecutarExportacion);
+    
+    // Cerrar modales haciendo clic fuera - CORREGIDOS
+    elements.photoModal.addEventListener('click', (e) => {
+      if (e.target === elements.photoModal) cerrarModalActual();
+    });
+    
+    elements.mapModal.addEventListener('click', (e) => {
+      if (e.target === elements.mapModal) cerrarModalActual();
+    });
+    
+    elements.exportModal.addEventListener('click', (e) => {
+      if (e.target === elements.exportModal) cerrarModalActual();
+    });
+    
+    // Botones de formato
+    elements.formatButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        elements.formatButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        exportFormat = button.dataset.format;
+        
+        elements.excelWarning.style.display = exportFormat === 'excel' ? 'block' : 'none';
+        elements.zipWarning.style.display = exportFormat === 'zip' ? 'block' : 'none';
+      });
+    });
+    
+    // Tecla ESC para cerrar modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cerrarModalActual();
+      }
+    });
+
+    // Cargar datos de Firestore
+    const colRef = collection(db, COLLECTION_NAME);
+    const q = query(colRef, orderBy('createdAt', 'desc'));
+    
+    onSnapshot(q, (snapshot) => {
+      console.log(`📥 ${snapshot.size} registros cargados`);
+      
+      allRegistrations = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const fechaArgentina = convertirUTCaArgentina(data.createdAt);
+        const { date, time } = formatearFechaHora(data.createdAt);
+        
+        let horaArgentina = null;
+        if (fechaArgentina) {
+          horaArgentina = {
+            hour: fechaArgentina.getHours(),
+            minute: fechaArgentina.getMinutes()
+          };
+        }
+        
+        const registro = {
+          id: doc.id,
+          dni: data.dni || 'Sin DNI',
+          nombre: obtenerNombreEmpleado(data.dni),
+          lat: data.location?.latitude || data.lat || null,
+          lng: data.location?.longitude || data.lng || null,
+          foto: data.photo || data.image || '',
+          fecha: date,
+          hora: time,
+          fechaArgentina: fechaArgentina,
+          horaArgentina: horaArgentina,
+          timestamp: fechaArgentina ? fechaArgentina.getTime() : Date.now(),
+          tipo: determinarTipoJornada(data)
+        };
+        
+        allRegistrations.push(registro);
+      });
+      
+      actualizarEstado('success', `${snapshot.size} registros cargados`);
+      elements.lastUpdate.textContent = new Date().toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      filteredRegistrations = [...allRegistrations];
+      renderizarRegistros();
+      
+    }, (error) => {
+      console.error("❌ Error:", error);
+      actualizarEstado('error', `Error: ${error.message}`);
+    });
+
+    // Actualizar hora actual
+    function actualizarHoraActual() {
+      const ahora = new Date();
+      elements.currentTime.textContent = ahora.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    actualizarHoraActual();
+    setInterval(actualizarHoraActual, 60000);
+
+    // Fecha por defecto
+    const hoy = new Date().toISOString().split('T')[0];
+    elements.dateFilter.value = hoy;
+    currentDateFilter = hoy;
+  </script>
+</body>
+</html>
