@@ -1,164 +1,2345 @@
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Visor de registros (Firestore)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Asistencia - Sistema de Gestión</title>
+  <!-- Leaflet CSS para mapas -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- JSZip para archivos comprimidos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FileSaver para descargas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <!-- ExcelJS para exportar con imágenes -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <!-- Papa Parse para leer CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
+    :root {
+      --primary-color: #4285f4;
+      --secondary-color: #34a853;
+      --danger-color: #ea4335;
+      --warning-color: #fbbc05;
+      --success-color: #34a853;
+      --light-bg: #f8f9fa;
+      --dark-bg: #343a40;
+      --border-color: #dee2e6;
+      --text-color: #333;
+      --text-light: #6c757d;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f5f5f5;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      color: var(--text-color);
+      background-color: #f0f2f5;
+      padding: 8px;
+      font-size: 13px;
     }
-    h1 {
+
+    .container {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      padding: 12px;
+      margin-bottom: 12px;
+      max-width: 1600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Login Container */
+    .login-container {
+      max-width: 360px;
+      margin: 40px auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      padding: 24px;
+    }
+
+    .login-header {
       text-align: center;
+      margin-bottom: 24px;
     }
+
+    .login-header h2 {
+      color: var(--primary-color);
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+    }
+
+    .login-header p {
+      color: var(--text-light);
+      font-size: 0.85rem;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      color: var(--dark-bg);
+      font-size: 0.85rem;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .login-btn:hover {
+      background-color: #3367d6;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 16px;
+      color: var(--text-light);
+      font-size: 0.8rem;
+    }
+
+    /* User Info */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: var(--light-bg);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .user-details {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--dark-bg);
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .user-reparticion {
+      color: var(--primary-color);
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .user-role-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 12px;
+      font-size: 0.65rem;
+      font-weight: 600;
+    }
+
+    .user-role-badge.admin {
+      background: #ea4335;
+    }
+
+    .logout-btn {
+      padding: 6px 12px;
+      background: var(--danger-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .logout-btn:hover {
+      opacity: 0.9;
+    }
+
+    /* Admin Panel - SOLO VISIBLE PARA ADMIN */
+    .admin-panel {
+      background: var(--light-bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 2px solid var(--primary-color);
+    }
+
+    .admin-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 8px;
+    }
+
+    .admin-tab {
+      padding: 6px 14px;
+      background: white;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+    }
+
+    .admin-tab:hover {
+      background: var(--light-bg);
+      border-color: var(--primary-color);
+    }
+
+    .admin-tab.active {
+      background: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+
+    .admin-tab-content {
+      display: none;
+    }
+
+    .admin-tab-content.active {
+      display: block;
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .admin-header h3 {
+      color: var(--primary-color);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .admin-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .admin-control-group {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .admin-control-group h4 {
+      color: var(--dark-bg);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .file-upload-area {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .file-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-input-label {
+      display: inline-block;
+      padding: 6px 12px;
+      background: var(--primary-color);
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    .file-input-label:hover {
+      opacity: 0.9;
+    }
+
+    .file-input {
+      position: absolute;
+      left: -9999px;
+    }
+
+    .file-name {
+      font-size: 0.75rem;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 8px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 8px;
+      border-radius: 6px;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      line-height: 1.2;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      color: var(--text-light);
+      margin-top: 2px;
+    }
+
+    .table-container-sm {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: white;
+    }
+
+    .table-sm {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+
+    .table-sm th {
+      background: var(--primary-color);
+      color: white;
+      padding: 6px 4px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .table-sm td {
+      padding: 4px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .table-sm tr:hover {
+      background: var(--light-bg);
+    }
+
+    /* Filtros compactos */
+    .filters-container {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .filter-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .filter-group label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--dark-bg);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.8rem;
+      height: 30px;
+    }
+
+    /* Busqueda */
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 6px 10px 6px 30px !important;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      height: 32px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 0.8rem;
+      pointer-events: none;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      height: 28px;
+      font-size: 0.75rem;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .btn-success {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
+    }
+
+    .btn-warning {
+      background-color: var(--warning-color);
+      color: var(--dark-bg);
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    /* Tabla principal */
+    .table-container {
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      font-size: 0.8rem;
+      table-layout: fixed;
     }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-      font-size: 14px;
+
+    thead {
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
+
     th {
-      background-color: #f0f0f0;
+      padding: 8px 4px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--dark-bg);
+      border-bottom: 2px solid var(--border-color);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      background-color: #f8f9fa;
+      position: sticky;
+      top: 0;
     }
-    tr:nth-child(even) {
-      background-color: #fafafa;
+
+    td {
+      padding: 6px 4px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: middle;
+      white-space: nowrap;
     }
-    img {
-      max-width: 80px;
-      max-height: 80px;
+
+    /* Columnas */
+    .employee-cell { width: 18%; }
+    .reparticion-cell { width: 12%; }
+    .jornada-cell { width: 8%; }
+    .date-cell { width: 12%; }
+    .time-cell { width: 8%; }
+    .map-cell { width: 18%; height: 40px; }
+    .photo-cell { width: 12%; }
+
+    .jornada-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .jornada-badge.entrada {
+      background-color: rgba(52, 168, 83, 0.1);
+      color: var(--secondary-color);
+      border: 1px solid rgba(52, 168, 83, 0.2);
+    }
+
+    .jornada-badge.salida {
+      background-color: rgba(234, 67, 53, 0.1);
+      color: var(--danger-color);
+      border: 1px solid rgba(234, 67, 53, 0.2);
+    }
+
+    .jornada-badge.media {
+      background-color: rgba(251, 188, 5, 0.1);
+      color: var(--warning-color);
+      border: 1px solid rgba(251, 188, 5, 0.2);
+    }
+
+    .mini-map {
+      width: 100%;
+      height: 100%;
+      min-height: 35px;
       border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      background: #f8f9fa;
+      position: relative;
+      z-index: 5;
     }
-    .mensaje {
-      margin-top: 10px;
-      font-style: italic;
-      color: #555;
+
+    .mini-map .leaflet-container {
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 5 !important;
+    }
+
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-light);
+      font-size: 0.6rem;
+      background: #f8f9fa;
+    }
+
+    .photo-thumbnail {
+      width: 35px;
+      height: 35px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #f8f9fa;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      margin: 0 auto;
+    }
+
+    .photo-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .photo-placeholder {
+      width: 35px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-light);
+      font-size: 0.6rem;
+      background: #f8f9fa;
+      border: 1px dashed var(--border-color);
+      border-radius: 4px;
+      margin: 0 auto;
+    }
+
+    .employee-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .employee-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.7rem;
+      flex-shrink: 0;
+    }
+
+    .employee-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .employee-dni {
+      font-weight: 600;
+      color: var(--dark-bg);
+      font-size: 0.75rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .employee-name {
+      font-size: 0.65rem;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .reparticion-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      background-color: var(--primary-color);
+      color: white;
+      border-radius: 10px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 450px;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 10px 14px;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.3rem;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+
+    .modal-close:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-body {
+      padding: 14px;
+      overflow: auto;
+      max-height: calc(90vh - 50px);
+    }
+
+    .status-message {
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+
+    .status-message.loading {
+      background-color: #e8f4fd;
+      color: #0c63e4;
+      border-left: 3px solid #0c63e4;
+    }
+
+    .status-message.success {
+      background-color: #d1f7dc;
+      color: #0a7227;
+      border-left: 3px solid var(--secondary-color);
+    }
+
+    .status-message.error {
+      background-color: #fde8e8;
+      color: #b02a37;
+      border-left: 3px solid var(--danger-color);
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 20px 10px;
+      color: var(--text-light);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-light);
+      font-size: 0.7rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Loader */
+    .loader {
+      display: none;
+      text-align: center;
+      padding: 15px;
+    }
+    
+    .loader.active {
+      display: block;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4285f4;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .template-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .template-btn {
+      flex: 1;
+      padding: 6px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .template-btn.active {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .export-options {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .export-format-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .format-btn {
+      flex: 1;
+      padding: 8px;
+      border: 2px solid var(--border-color);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .format-btn.active {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: white;
+    }
+
+    .export-stats {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .export-warning {
+      background: #fff3cd;
+      border-left: 3px solid #ffc107;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    /* Media Queries */
+    @media (max-width: 768px) {
+      .filters-container {
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      .admin-controls {
+        grid-template-columns: 1fr;
+      }
+      
+      .admin-tabs {
+        flex-direction: column;
+      }
+      
+      .table-container {
+        overflow-x: auto;
+      }
+      
+      table {
+        min-width: 800px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .filters-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .user-info {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .controls-row {
+        flex-direction: column;
+      }
+      
+      .action-buttons {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+      
+      .file-input-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .file-name {
+        width: 100%;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Registros (Cloud Firestore)</h1>
+  <!-- Login Container -->
+  <div id="login-container" class="login-container">
+    <div class="login-header">
+      <h2>🔐 Control de Asistencia</h2>
+      <p>Ingrese sus credenciales</p>
+    </div>
+    
+    <div class="form-group">
+      <label for="username-input">Usuario</label>
+      <input type="text" id="username-input" placeholder="Ingrese su usuario" autocomplete="off">
+    </div>
+    
+    <div class="form-group">
+      <label for="password-input">Contraseña</label>
+      <input type="password" id="password-input" placeholder="Ingrese su contraseña">
+    </div>
+    
+    <button class="login-btn" id="login-btn">Ingresar</button>
+    
+    <div class="login-footer">
+      <p>Usuario admin: admin / admin123</p>
+    </div>
+  </div>
 
-  <div class="mensaje" id="mensaje">Cargando datos...</div>
+  <!-- Main App Container -->
+  <div id="app-container" class="hidden">
+    <div class="container">
+      <header>
+        <div class="header-row">
+          <div class="title-section">
+            <h1>📋 Control de Asistencia</h1>
+            <p class="subtitle">Registro de entradas y salidas</p>
+          </div>
+          <div class="user-info">
+            <div class="user-details">
+              <div class="user-name">
+                <span id="user-nombre"></span>
+                <span class="user-role-badge" id="user-role-badge"></span>
+              </div>
+              <div class="user-reparticion" id="user-reparticion-display"></div>
+            </div>
+            <button class="logout-btn" id="logout-btn">Cerrar sesión</button>
+          </div>
+        </div>
+        <div id="last-update" style="color: var(--text-light); font-size: 0.75rem; text-align: right; margin-top: 4px;"></div>
+      </header>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ID Documento</th>
-        <th>DNI</th>
-        <th>Fecha/Hora</th>
-        <th>Ubicación (lat, lng)</th>
-        <th>Foto</th>
-      </tr>
-    </thead>
-    <tbody id="registros-body">
-      <!-- Filas dinámicas -->
-    </tbody>
-  </table>
+      <!-- Panel de Administración - SOLO VISIBLE PARA ADMIN -->
+      <div id="admin-panel" class="admin-panel hidden">
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="usuarios">👥 Usuarios</button>
+          <button class="admin-tab" data-tab="empleados">👤 Empleados</button>
+        </div>
+
+        <!-- Tab Usuarios -->
+        <div class="admin-tab-content active" id="tab-usuarios">
+          <div class="admin-header">
+            <h3>👥 Usuarios del Sistema</h3>
+            <button class="btn btn-warning btn-sm" id="download-template-usuarios-btn">
+              📥 Plantilla
+            </button>
+          </div>
+
+          <div class="template-selector">
+            <button class="template-btn active" data-format="csv">📄 CSV</button>
+            <button class="template-btn" data-format="excel">📊 Excel</button>
+          </div>
+
+          <div class="admin-controls">
+            <div class="admin-control-group">
+              <h4>📤 Cargar Usuarios</h4>
+              <div class="file-upload-area">
+                <div class="file-input-wrapper">
+                  <label class="file-input-label" for="usuarios-file">Seleccionar archivo</label>
+                  <input type="file" id="usuarios-file" class="file-input" accept=".csv,.xlsx,.xls">
+                  <span class="file-name" id="file-name-usuarios">Ninguno</span>
+                </div>
+                <button class="btn btn-success btn-sm" id="upload-usuarios-btn" style="width: 100%;">
+                  ⬆️ Cargar
+                </button>
+              </div>
+            </div>
+
+            <div class="admin-control-group">
+              <h4>📊 Estadísticas</h4>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="total-usuarios">0</div>
+                  <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="total-usuarios-admin">0</div>
+                  <div class="stat-label">Admins</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="total-usuarios-reparticiones">0</div>
+                  <div class="stat-label">Reparticiones</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container-sm">
+            <table class="table-sm">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Nombre</th>
+                  <th>Repartición</th>
+                  <th>Rol</th>
+                </tr>
+              </thead>
+              <tbody id="usuarios-preview"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab Empleados -->
+        <div class="admin-tab-content" id="tab-empleados">
+          <div class="admin-header">
+            <h3>👤 Empleados (Registran Asistencia)</h3>
+            <button class="btn btn-warning btn-sm" id="download-template-empleados-btn">
+              📥 Plantilla
+            </button>
+          </div>
+
+          <div class="template-selector">
+            <button class="template-btn active" data-format="csv">📄 CSV</button>
+            <button class="template-btn" data-format="excel">📊 Excel</button>
+          </div>
+
+          <div class="admin-controls">
+            <div class="admin-control-group">
+              <h4>📤 Cargar Empleados</h4>
+              <div class="file-upload-area">
+                <div class="file-input-wrapper">
+                  <label class="file-input-label" for="empleados-file">Seleccionar archivo</label>
+                  <input type="file" id="empleados-file" class="file-input" accept=".csv,.xlsx,.xls">
+                  <span class="file-name" id="file-name-empleados">Ninguno</span>
+                </div>
+                <button class="btn btn-success btn-sm" id="upload-empleados-btn" style="width: 100%;">
+                  ⬆️ Cargar
+                </button>
+              </div>
+            </div>
+
+            <div class="admin-control-group">
+              <h4>📊 Estadísticas</h4>
+              <div class="stats-grid">
+                <div class="stat-card">
+                  <div class="stat-value" id="total-empleados">0</div>
+                  <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="total-empleados-reparticiones">0</div>
+                  <div class="stat-label">Reparticiones</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value" id="total-registros">0</div>
+                  <div class="stat-label">Registros</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-container-sm">
+            <table class="table-sm">
+              <thead>
+                <tr>
+                  <th>DNI</th>
+                  <th>Nombre</th>
+                  <th>Repartición</th>
+                </tr>
+              </thead>
+              <tbody id="empleados-preview"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filters-container">
+        <div class="filter-group full-width">
+          <label>Buscar</label>
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="DNI o nombre...">
+          </div>
+        </div>
+        
+        <div class="filter-group">
+          <label>Fecha Desde</label>
+          <input type="date" id="date-from">
+        </div>
+        
+        <div class="filter-group">
+          <label>Fecha Hasta</label>
+          <input type="date" id="date-to">
+        </div>
+        
+        <div class="filter-group">
+          <label>Tipo</label>
+          <select id="shift-filter">
+            <option value="all">Todos</option>
+            <option value="entrada">Entradas</option>
+            <option value="salida">Salidas</option>
+            <option value="media">Media</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label>Hora Desde</label>
+          <input type="time" id="time-start">
+        </div>
+        
+        <div class="filter-group">
+          <label>Hora Hasta</label>
+          <input type="time" id="time-end">
+        </div>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="controls-row">
+        <div class="action-buttons">
+          <button class="btn btn-secondary" id="reset-filters">🔄 Limpiar</button>
+          <button class="btn btn-primary" id="apply-filters">✅ Aplicar</button>
+          <button class="btn btn-success" id="export-btn">📥 Exportar</button>
+        </div>
+      </div>
+
+      <!-- Estado -->
+      <div class="status-message loading" id="status-message">⏳ Conectando...</div>
+
+      <!-- Tabla de registros -->
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th class="employee-cell">Empleado</th>
+              <th class="reparticion-cell">Repartición</th>
+              <th class="jornada-cell">Tipo</th>
+              <th class="date-cell">Fecha</th>
+              <th class="time-cell">Hora</th>
+              <th class="map-cell">Ubicación</th>
+              <th class="photo-cell">Foto</th>
+            </tr>
+          </thead>
+          <tbody id="registros-body"></tbody>
+        </table>
+      </div>
+
+      <div id="no-data-message" class="no-data" style="display: none;">📭 No hay registros</div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="photo-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Foto</h3>
+          <button class="modal-close" id="close-photo-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <img id="modal-photo" src="" alt="Foto" style="max-width: 100%; max-height: 60vh; display: block; margin: 0 auto;">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="map-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Ubicación</h3>
+          <button class="modal-close" id="close-map-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="full-map" style="height: 250px; border-radius: 4px; margin-bottom: 10px;"></div>
+          <a id="google-maps-link" class="btn btn-primary" target="_blank" style="display: block; text-align: center; text-decoration: none;">📍 Ver en Google Maps</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="export-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📥 Exportar</h3>
+          <button class="modal-close" id="close-export-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="loader" id="export-loader">
+            <div class="spinner"></div>
+            <p id="progress-text">Procesando...</p>
+          </div>
+          
+          <div class="export-options" id="export-options">
+            <div class="export-format-buttons">
+              <button class="format-btn active" data-format="excel">📊 Excel</button>
+              <button class="format-btn" data-format="zip">📁 ZIP</button>
+            </div>
+            
+            <input type="text" id="export-filename" class="export-filename" value="registros-asistencia" placeholder="Nombre del archivo">
+            
+            <div class="export-stats">
+              <p><strong>Registros:</strong> <span id="export-count-display">0</span></p>
+              <p><strong>Imágenes:</strong> <span id="image-count-display">0</span></p>
+            </div>
+
+            <div class="export-warning" id="excel-warning">
+              ⚠️ Imágenes 100x70px en celdas
+            </div>
+            
+            <div class="export-actions" style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="btn btn-secondary" id="cancel-export" style="flex: 1;">Cancelar</button>
+              <button class="btn btn-success" id="confirm-export" style="flex: 1;">Descargar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>Última actualización: <span id="current-time"></span></p>
+    </footer>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
   <script type="module">
-    console.log("🔧 Script Firebase iniciado");
-
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import {
       getFirestore,
       collection,
-      onSnapshot
+      onSnapshot,
+      query,
+      orderBy,
+      Timestamp
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    console.log("✅ Módulos de Firebase importados correctamente");
-
-    // Configuración de tu proyecto
+    // Configuración Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB_S88U5eNwZGUUT2tqt5IdpXAF8U18DZs",
       authDomain: "studio-389789246-1be00.firebaseapp.com",
       projectId: "studio-389789246-1be00"
-      // No hace falta databaseURL para Firestore
     };
 
-    console.log("⚙️ Config Firebase:", firebaseConfig);
-
-    // Inicializar Firebase y Firestore
     const app = initializeApp(firebaseConfig);
-    console.log("🔥 Firebase App inicializada:", app.name);
-
     const db = getFirestore(app);
-    console.log("📚 Firestore inicializado");
 
-    // Nombre de la colección
-    const COLLECTION_NAME = "registrations"; // Cambiá si tu colección se llama distinto
-    console.log("📂 Colección objetivo:", COLLECTION_NAME);
-
-    const tbody = document.getElementById("registros-body");
-    const mensaje = document.getElementById("mensaje");
-
-    const colRef = collection(db, COLLECTION_NAME);
-    console.log("📌 Referencia a colección creada");
-
-    onSnapshot(
-      colRef,
-      (snapshot) => {
-        console.log("📥 onSnapshot disparado. Cantidad de documentos:", snapshot.size);
-
-        tbody.innerHTML = "";
-
-        if (snapshot.empty) {
-          mensaje.textContent = "No hay datos para mostrar.";
-          return;
-        }
-
-        mensaje.textContent = "Datos cargados correctamente.";
-
-        snapshot.forEach((doc) => {
-          const item = doc.data();
-          console.log("🧾 Documento recibido:", doc.id, item);
-
-          const tr = document.createElement("tr");
-
-          const createdAt = item.createdAt ?? "";
-          const dni = item.dni ?? "";
-          const lat = item.location?.latitude ?? "";
-          const lng = item.location?.longitude ?? "";
-          const photoData = item.photo ?? "";
-
-          let fechaTexto = "";
-          if (createdAt && typeof createdAt.toDate === "function") {
-            fechaTexto = createdAt.toDate().toLocaleString("es-AR");
-          } else if (typeof createdAt === "number") {
-            fechaTexto = new Date(createdAt).toLocaleString("es-AR");
-          } else {
-            fechaTexto = createdAt;
-          }
-
-          const fotoHtml = photoData
-            ? `${photoData}`
-            : "";
-
-          tr.innerHTML = `
-            <td>${doc.id}</td>
-            <td>${dni}</td>
-            <td>${fechaTexto}</td>
-            <td>${lat}, ${lng}</td>
-            <td>${fotoHtml}</td>
-          `;
-
-          tbody.appendChild(tr);
-        });
+    // ========== BASES DE DATOS ==========
+    let usuariosDB = {
+      "admin": {
+        password: "admin123",
+        nombre: "Administrador",
+        reparticion: "Sistema",
+        rol: "admin"
       },
-      (error) => {
-        console.error("❌ Error al leer Firestore:", error);
-        mensaje.textContent = "Error al leer Firestore. Revisá la consola.";
+      "user1": {
+        password: "user123",
+        nombre: "Usuario Prueba",
+        reparticion: "Producción",
+        rol: "user"
       }
-    );
+    };
+
+    let empleadosDB = {};
+
+    // ========== PERSISTENCIA ==========
+    function guardarUsuarios() {
+      localStorage.setItem('usuariosDB', JSON.stringify(usuariosDB));
+    }
+
+    function cargarUsuarios() {
+      const stored = localStorage.getItem('usuariosDB');
+      if (stored) {
+        try {
+          usuariosDB = JSON.parse(stored);
+          if (!usuariosDB['admin']) {
+            usuariosDB['admin'] = {
+              password: "admin123",
+              nombre: "Administrador",
+              reparticion: "Sistema",
+              rol: "admin"
+            };
+            guardarUsuarios();
+          }
+        } catch (e) {}
+      }
+    }
+
+    function guardarEmpleados() {
+      localStorage.setItem('empleadosDB', JSON.stringify(empleadosDB));
+    }
+
+    function cargarEmpleados() {
+      const stored = localStorage.getItem('empleadosDB');
+      if (stored) {
+        try {
+          empleadosDB = JSON.parse(stored);
+        } catch (e) {}
+      }
+    }
+
+    cargarUsuarios();
+    cargarEmpleados();
+
+    // ========== ELEMENTOS DOM ==========
+    const elements = {
+      loginContainer: document.getElementById('login-container'),
+      appContainer: document.getElementById('app-container'),
+      usernameInput: document.getElementById('username-input'),
+      passwordInput: document.getElementById('password-input'),
+      loginBtn: document.getElementById('login-btn'),
+      logoutBtn: document.getElementById('logout-btn'),
+      
+      userNombre: document.getElementById('user-nombre'),
+      userRoleBadge: document.getElementById('user-role-badge'),
+      userReparticionDisplay: document.getElementById('user-reparticion-display'),
+      
+      adminPanel: document.getElementById('admin-panel'),
+      adminTabs: document.querySelectorAll('.admin-tab'),
+      tabUsuarios: document.getElementById('tab-usuarios'),
+      tabEmpleados: document.getElementById('tab-empleados'),
+      
+      downloadTemplateUsuariosBtn: document.getElementById('download-template-usuarios-btn'),
+      usuariosFile: document.getElementById('usuarios-file'),
+      fileNameUsuarios: document.getElementById('file-name-usuarios'),
+      uploadUsuariosBtn: document.getElementById('upload-usuarios-btn'),
+      totalUsuarios: document.getElementById('total-usuarios'),
+      totalUsuariosAdmin: document.getElementById('total-usuarios-admin'),
+      totalUsuariosReparticiones: document.getElementById('total-usuarios-reparticiones'),
+      usuariosPreview: document.getElementById('usuarios-preview'),
+      
+      downloadTemplateEmpleadosBtn: document.getElementById('download-template-empleados-btn'),
+      empleadosFile: document.getElementById('empleados-file'),
+      fileNameEmpleados: document.getElementById('file-name-empleados'),
+      uploadEmpleadosBtn: document.getElementById('upload-empleados-btn'),
+      totalEmpleados: document.getElementById('total-empleados'),
+      totalEmpleadosReparticiones: document.getElementById('total-empleados-reparticiones'),
+      totalRegistros: document.getElementById('total-registros'),
+      empleadosPreview: document.getElementById('empleados-preview'),
+      
+      templateButtons: document.querySelectorAll('.template-btn'),
+      
+      tbody: document.getElementById('registros-body'),
+      status: document.getElementById('status-message'),
+      lastUpdate: document.getElementById('last-update'),
+      noData: document.getElementById('no-data-message'),
+      search: document.getElementById('search-input'),
+      currentTime: document.getElementById('current-time'),
+      dateFrom: document.getElementById('date-from'),
+      dateTo: document.getElementById('date-to'),
+      timeStart: document.getElementById('time-start'),
+      timeEnd: document.getElementById('time-end'),
+      shiftFilter: document.getElementById('shift-filter'),
+      applyBtn: document.getElementById('apply-filters'),
+      resetBtn: document.getElementById('reset-filters'),
+      exportBtn: document.getElementById('export-btn'),
+      
+      photoModal: document.getElementById('photo-modal'),
+      mapModal: document.getElementById('map-modal'),
+      exportModal: document.getElementById('export-modal'),
+      closePhoto: document.getElementById('close-photo-modal'),
+      closeMap: document.getElementById('close-map-modal'),
+      closeExport: document.getElementById('close-export-modal'),
+      modalPhoto: document.getElementById('modal-photo'),
+      fullMap: document.getElementById('full-map'),
+      googleMapsLink: document.getElementById('google-maps-link'),
+      
+      exportFilename: document.getElementById('export-filename'),
+      exportCountDisplay: document.getElementById('export-count-display'),
+      imageCountDisplay: document.getElementById('image-count-display'),
+      cancelExport: document.getElementById('cancel-export'),
+      confirmExport: document.getElementById('confirm-export'),
+      formatButtons: document.querySelectorAll('.format-btn'),
+      excelWarning: document.getElementById('excel-warning'),
+      exportLoader: document.getElementById('export-loader'),
+      exportOptions: document.getElementById('export-options'),
+      progressText: document.getElementById('progress-text')
+    };
+
+    // ========== ESTADO ==========
+    let currentUser = null;
+    let allRegistrations = [];
+    let filteredRegistrations = [];
+    let selectedTemplateFormat = 'csv';
+    let currentSearch = '';
+    let currentDateFrom = '';
+    let currentDateTo = '';
+    let currentTimeStart = '';
+    let currentTimeEnd = '';
+    let currentShiftFilter = 'all';
+    let fullMap = null;
+    let exportFormat = 'excel';
+    let mapInstances = new Map();
+    let activeModal = null;
+
+    const COLLECTION_NAME = "registrations";
+
+    // ========== FUNCIONES DE AUTENTICACIÓN ==========
+    function iniciarSesion() {
+      const username = elements.usernameInput.value.trim();
+      const password = elements.passwordInput.value.trim();
+      
+      if (!username || !password) {
+        alert('Ingrese usuario y contraseña');
+        return;
+      }
+
+      const usuario = usuariosDB[username];
+      
+      if (usuario && usuario.password === password) {
+        currentUser = {
+          username: username,
+          nombre: usuario.nombre,
+          reparticion: usuario.reparticion,
+          rol: usuario.rol
+        };
+        
+        elements.userNombre.textContent = currentUser.nombre;
+        elements.userRoleBadge.textContent = currentUser.rol === 'admin' ? 'Admin' : 'User';
+        elements.userRoleBadge.className = `user-role-badge ${currentUser.rol === 'admin' ? 'admin' : ''}`;
+        elements.userReparticionDisplay.textContent = currentUser.reparticion;
+        
+        elements.loginContainer.classList.add('hidden');
+        elements.appContainer.classList.remove('hidden');
+        
+        // Solo mostrar panel de admin si el usuario es administrador
+        if (currentUser.rol === 'admin') {
+          elements.adminPanel.classList.remove('hidden');
+          actualizarVistaPreviaUsuarios();
+          actualizarVistaPreviaEmpleados();
+          actualizarEstadisticasUsuarios();
+          actualizarEstadisticasEmpleados();
+        } else {
+          elements.adminPanel.classList.add('hidden');
+        }
+        
+        // Establecer fecha actual por defecto (hoy)
+        const hoy = new Date().toISOString().split('T')[0];
+        elements.dateFrom.value = hoy;
+        elements.dateTo.value = hoy;
+        currentDateFrom = hoy;
+        currentDateTo = hoy;
+        
+        cargarDatosFirestore();
+        
+        elements.usernameInput.value = '';
+        elements.passwordInput.value = '';
+      } else {
+        alert('❌ Usuario o contraseña incorrectos');
+      }
+    }
+
+    function cerrarSesion() {
+      currentUser = null;
+      elements.loginContainer.classList.remove('hidden');
+      elements.appContainer.classList.add('hidden');
+      allRegistrations = [];
+      filteredRegistrations = [];
+    }
+
+    // ========== FUNCIONES DE USUARIOS ==========
+    function descargarPlantillaUsuarios() {
+      const fecha = new Date().toISOString().split('T')[0];
+      const headers = ['usuario', 'password', 'nombre', 'reparticion', 'rol'];
+      const ejemplo = ['jperez', 'pass123', 'Juan Pérez', 'Producción', 'user'];
+      
+      if (selectedTemplateFormat === 'csv') {
+        const csvContent = [headers.join(','), ejemplo.join(',')].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, `usuarios-${fecha}.csv`);
+      } else {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+        XLSX.writeFile(wb, `usuarios-${fecha}.xlsx`);
+      }
+    }
+
+    function procesarArchivoUsuarios(file) {
+      const extension = file.name.split('.').pop().toLowerCase();
+      
+      const procesar = (data) => {
+        let count = 0;
+        data.forEach(row => {
+          if (row.usuario && row.password && row.nombre && row.reparticion && row.rol) {
+            usuariosDB[row.usuario] = {
+              password: row.password,
+              nombre: row.nombre,
+              reparticion: row.reparticion,
+              rol: row.rol
+            };
+            count++;
+          }
+        });
+        
+        if (count > 0) {
+          guardarUsuarios();
+          actualizarVistaPreviaUsuarios();
+          actualizarEstadisticasUsuarios();
+          alert(`✅ ${count} usuarios cargados`);
+          elements.fileNameUsuarios.textContent = 'Ninguno';
+          elements.usuariosFile.value = '';
+        }
+      };
+
+      if (extension === 'csv') {
+        Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          procesar(XLSX.utils.sheet_to_json(ws));
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function actualizarVistaPreviaUsuarios() {
+      const tbody = elements.usuariosPreview;
+      const usuarios = Object.entries(usuariosDB);
+      
+      if (usuarios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Sin datos</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = usuarios.slice(0, 10).map(([user, data]) => `
+        <tr>
+          <td>${user}</td>
+          <td>${data.nombre}</td>
+          <td>${data.reparticion}</td>
+          <td>${data.rol === 'admin' ? '👑' : '👤'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function actualizarEstadisticasUsuarios() {
+      const usuarios = Object.values(usuariosDB);
+      elements.totalUsuarios.textContent = usuarios.length;
+      elements.totalUsuariosAdmin.textContent = usuarios.filter(u => u.rol === 'admin').length;
+      elements.totalUsuariosReparticiones.textContent = new Set(usuarios.map(u => u.reparticion)).size;
+    }
+
+    // ========== FUNCIONES DE EMPLEADOS ==========
+    function descargarPlantillaEmpleados() {
+      const fecha = new Date().toISOString().split('T')[0];
+      const headers = ['dni', 'nombre', 'reparticion'];
+      const ejemplo = ['30123456', 'Juan Pérez', 'Producción'];
+      
+      if (selectedTemplateFormat === 'csv') {
+        const csvContent = [headers.join(','), ejemplo.join(',')].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, `empleados-${fecha}.csv`);
+      } else {
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Empleados');
+        XLSX.writeFile(wb, `empleados-${fecha}.xlsx`);
+      }
+    }
+
+    function procesarArchivoEmpleados(file) {
+      const extension = file.name.split('.').pop().toLowerCase();
+      
+      const procesar = (data) => {
+        let count = 0;
+        data.forEach(row => {
+          if (row.dni && row.nombre && row.reparticion) {
+            empleadosDB[String(row.dni).trim()] = {
+              nombre: row.nombre.trim(),
+              reparticion: row.reparticion.trim()
+            };
+            count++;
+          }
+        });
+        
+        if (count > 0) {
+          guardarEmpleados();
+          actualizarVistaPreviaEmpleados();
+          actualizarEstadisticasEmpleados();
+          aplicarFiltros();
+          alert(`✅ ${count} empleados cargados`);
+          elements.fileNameEmpleados.textContent = 'Ninguno';
+          elements.empleadosFile.value = '';
+        }
+      };
+
+      if (extension === 'csv') {
+        Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          procesar(XLSX.utils.sheet_to_json(ws));
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function actualizarVistaPreviaEmpleados() {
+      const tbody = elements.empleadosPreview;
+      const empleados = Object.entries(empleadosDB);
+      
+      if (empleados.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">Sin datos</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = empleados.slice(0, 10).map(([dni, data]) => `
+        <tr>
+          <td>${dni}</td>
+          <td>${data.nombre}</td>
+          <td>${data.reparticion}</td>
+        </tr>
+      `).join('');
+    }
+
+    function actualizarEstadisticasEmpleados() {
+      elements.totalEmpleados.textContent = Object.keys(empleadosDB).length;
+      elements.totalEmpleadosReparticiones.textContent = new Set(Object.values(empleadosDB).map(e => e.reparticion)).size;
+      elements.totalRegistros.textContent = allRegistrations.length;
+    }
+
+    // ========== FUNCIONES PRINCIPALES ==========
+    function convertirUTCaArgentina(dateUTC) {
+      if (!dateUTC) return null;
+      try {
+        const date = dateUTC instanceof Timestamp ? dateUTC.toDate() : new Date(dateUTC);
+        // Argentina UTC-3
+        return new Date(date.getTime() - (3 * 60 * 60 * 1000));
+      } catch {
+        return dateUTC;
+      }
+    }
+
+    function determinarTipoJornada(data) {
+      if (data.shift) {
+        const shift = data.shift.toLowerCase();
+        if (shift.includes('entrada') || shift === 'start') return 'entrada';
+        if (shift.includes('salida') || shift === 'end') return 'salida';
+        if (shift.includes('media') || shift === 'half') return 'media';
+      }
+      
+      if (data.createdAt) {
+        try {
+          const date = convertirUTCaArgentina(data.createdAt);
+          if (date) {
+            const hora = date.getHours();
+            if (hora < 10) return 'entrada';
+            if (hora < 14) return 'media';
+            return 'salida';
+          }
+        } catch (e) {}
+      }
+      return 'desconocido';
+    }
+
+    function formatearFechaHora(dateValue) {
+      if (!dateValue) return { date: "N/A", time: "N/A" };
+      try {
+        const date = convertirUTCaArgentina(dateValue);
+        return {
+          date: date.toLocaleDateString("es-AR", { day: '2-digit', month: '2-digit', year: 'numeric' }),
+          time: date.toLocaleTimeString("es-AR", { hour: '2-digit', minute: '2-digit' })
+        };
+      } catch {
+        return { date: "Error", time: "" };
+      }
+    }
+
+    function obtenerDatosEmpleado(dni) {
+      if (!dni) return { nombre: 'Sin DNI', reparticion: 'Sin asignar' };
+      const emp = empleadosDB[dni];
+      return emp ? { nombre: emp.nombre, reparticion: emp.reparticion } : { nombre: dni, reparticion: 'No registrado' };
+    }
+
+    function esImagenValida(str) {
+      if (!str || typeof str !== 'string') return false;
+      return str.startsWith('data:image') || str.startsWith('http');
+    }
+
+    function inicializarMiniMapa(id, lat, lng) {
+      const containerId = `map-${id}`;
+      const element = document.getElementById(containerId);
+      
+      if (!element || !lat || !lng || mapInstances.has(containerId)) return;
+      
+      // Limpiar instancia anterior si existe
+      if (mapInstances.has(containerId)) {
+        mapInstances.get(containerId).remove();
+        mapInstances.delete(containerId);
+      }
+      
+      try {
+        // Pequeño retraso para asegurar que el DOM está listo
+        setTimeout(() => {
+          if (!document.getElementById(containerId)) return;
+          
+          const map = L.map(containerId, {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            tap: false,
+            boxZoom: false,
+            doubleClickZoom: false,
+            touchZoom: false
+          }).setView([lat, lng], 15);
+          
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap, © CartoDB'
+          }).addTo(map);
+          
+          L.marker([lat, lng], {
+            icon: L.divIcon({
+              html: '<div style="background:#4285f4;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>',
+              iconSize: [16, 16],
+              className: 'leaflet-marker-mini'
+            })
+          }).addTo(map);
+          
+          mapInstances.set(containerId, map);
+          
+          // Evento click para abrir modal
+          element.addEventListener('click', (e) => {
+            e.stopPropagation();
+            abrirMapaModal(lat, lng);
+          });
+          
+          // Forzar actualización del tamaño
+          setTimeout(() => {
+            if (map) map.invalidateSize();
+          }, 50);
+          
+        }, 100);
+      } catch (error) {
+        console.error("Error inicializando mini mapa:", error);
+      }
+    }
+
+    // ========== MODALES ==========
+    function cerrarModales() {
+      elements.photoModal.classList.remove('active');
+      elements.mapModal.classList.remove('active');
+      elements.exportModal.classList.remove('active');
+      
+      if (fullMap) {
+        fullMap.remove();
+        fullMap = null;
+      }
+      document.body.style.overflow = '';
+    }
+
+    function mostrarModal(modal) {
+      cerrarModales();
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function abrirMapaModal(lat, lng) {
+      elements.googleMapsLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+      mostrarModal(elements.mapModal);
+      
+      // Pequeño retraso para que el modal se muestre antes de inicializar el mapa
+      setTimeout(() => {
+        if (fullMap) {
+          fullMap.remove();
+        }
+        fullMap = L.map('full-map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(fullMap);
+        L.marker([lat, lng]).addTo(fullMap);
+        
+        // Forzar actualización del tamaño
+        setTimeout(() => {
+          if (fullMap) fullMap.invalidateSize();
+        }, 100);
+      }, 100);
+    }
+
+    function abrirFotoModal(url) {
+      elements.modalPhoto.src = url;
+      mostrarModal(elements.photoModal);
+    }
+
+    // ========== FILTRADO Y RENDERIZADO ==========
+    function aplicarFiltros() {
+      if (!currentUser || !allRegistrations.length) {
+        filteredRegistrations = [];
+        renderizarRegistros();
+        return;
+      }
+      
+      console.log('Aplicando filtros:', {
+        fechaDesde: currentDateFrom,
+        fechaHasta: currentDateTo,
+        horaInicio: currentTimeStart,
+        horaFin: currentTimeEnd,
+        tipo: currentShiftFilter,
+        busqueda: currentSearch
+      });
+      
+      filteredRegistrations = allRegistrations.filter(reg => {
+        // Filtro por repartición (solo para usuarios no admin)
+        if (currentUser.rol !== 'admin') {
+          const emp = obtenerDatosEmpleado(reg.dni);
+          if (emp.reparticion !== currentUser.reparticion) return false;
+        }
+        
+        // Filtro por búsqueda (DNI o nombre)
+        if (currentSearch) {
+          const emp = obtenerDatosEmpleado(reg.dni);
+          const term = currentSearch.toLowerCase();
+          const dniMatch = reg.dni && reg.dni.toLowerCase().includes(term);
+          const nombreMatch = emp.nombre.toLowerCase().includes(term);
+          if (!dniMatch && !nombreMatch) return false;
+        }
+        
+        // Filtro por tipo de jornada
+        if (currentShiftFilter !== 'all' && reg.tipo !== currentShiftFilter) return false;
+        
+        // Filtro por rango de fechas
+        if (reg.fechaArgentina) {
+          const fechaReg = new Date(reg.fechaArgentina);
+          fechaReg.setHours(0, 0, 0, 0);
+          const tiempoReg = fechaReg.getTime();
+          
+          if (currentDateFrom) {
+            const fechaDesde = new Date(currentDateFrom);
+            fechaDesde.setHours(0, 0, 0, 0);
+            if (tiempoReg < fechaDesde.getTime()) return false;
+          }
+          
+          if (currentDateTo) {
+            const fechaHasta = new Date(currentDateTo);
+            fechaHasta.setHours(23, 59, 59, 999);
+            if (tiempoReg > fechaHasta.getTime()) return false;
+          }
+        }
+        
+        // Filtro por rango de horas
+        if (reg.horaArgentina) {
+          const minutosReg = reg.horaArgentina.hour * 60 + reg.horaArgentina.minute;
+          
+          if (currentTimeStart) {
+            const [hStart, mStart] = currentTimeStart.split(':').map(Number);
+            const minutosStart = hStart * 60 + mStart;
+            if (minutosReg < minutosStart) return false;
+          }
+          
+          if (currentTimeEnd) {
+            const [hEnd, mEnd] = currentTimeEnd.split(':').map(Number);
+            const minutosEnd = hEnd * 60 + mEnd;
+            if (minutosReg > minutosEnd) return false;
+          }
+        }
+        
+        return true;
+      }).sort((a, b) => b.timestamp - a.timestamp);
+      
+      console.log(`Registros filtrados: ${filteredRegistrations.length}`);
+      renderizarRegistros();
+    }
+
+    function renderizarRegistros() {
+      elements.tbody.innerHTML = '';
+      elements.noData.style.display = filteredRegistrations.length ? 'none' : 'block';
+      
+      filteredRegistrations.forEach((reg, i) => {
+        const id = `reg-${i}-${Date.now()}`;
+        const emp = obtenerDatosEmpleado(reg.dni);
+        const { date, time } = formatearFechaHora(reg.fechaArgentina);
+        const tieneFoto = esImagenValida(reg.foto);
+        
+        const mapHtml = reg.lat && reg.lng ? 
+          `<div id="map-${id}" class="mini-map" data-lat="${reg.lat}" data-lng="${reg.lng}"></div>` : 
+          '<div class="map-placeholder">Sin ubicación</div>';
+        
+        const fotoHtml = tieneFoto ? 
+          `<div class="photo-thumbnail" data-foto="${reg.foto}"><img src="${reg.foto}" alt="foto" loading="lazy"></div>` : 
+          '<div class="photo-placeholder">Sin foto</div>';
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="employee-cell">
+            <div class="employee-info">
+              <div class="employee-avatar">${(reg.dni || '??').substring(0,2).toUpperCase()}</div>
+              <div class="employee-details">
+                <div class="employee-dni">${reg.dni || '??'}</div>
+                <div class="employee-name">${emp.nombre}</div>
+              </div>
+            </div>
+          </td>
+          <td class="reparticion-cell"><span class="reparticion-badge">${emp.reparticion}</span></td>
+          <td class="jornada-cell"><span class="jornada-badge ${reg.tipo}">${reg.tipo.toUpperCase()}</span></td>
+          <td class="date-cell">${date}</td>
+          <td class="time-cell">${time}</td>
+          <td class="map-cell">${mapHtml}</td>
+          <td class="photo-cell">${fotoHtml}</td>
+        `;
+        
+        elements.tbody.appendChild(row);
+        
+        // Inicializar mini mapa después de agregar al DOM
+        if (reg.lat && reg.lng) {
+          setTimeout(() => inicializarMiniMapa(id, reg.lat, reg.lng), 50);
+        }
+      });
+      
+      // Agregar event listeners a las fotos
+      document.querySelectorAll('.photo-thumbnail').forEach(el => {
+        el.addEventListener('click', () => abrirFotoModal(el.dataset.foto));
+      });
+      
+      actualizarEstadisticasEmpleados();
+    }
+
+    // ========== EXPORTACIÓN ==========
+    function contarImagenes() {
+      return filteredRegistrations.filter(r => esImagenValida(r.foto)).length;
+    }
+
+    function mostrarLoaderExportacion(show) {
+      elements.exportLoader.classList.toggle('active', show);
+      elements.exportOptions.style.display = show ? 'none' : 'block';
+    }
+
+    async function exportarExcel() {
+      try {
+        mostrarLoaderExportacion(true);
+        
+        const wb = new ExcelJS.Workbook();
+        wb.creator = 'Control Asistencia';
+        const ws = wb.addWorksheet('Registros');
+        
+        ws.columns = [
+          { header: 'Nº', width: 5 },
+          { header: 'DNI', width: 12 },
+          { header: 'Nombre', width: 25 },
+          { header: 'Repartición', width: 15 },
+          { header: 'Tipo', width: 10 },
+          { header: 'Fecha', width: 12 },
+          { header: 'Hora', width: 8 },
+          { header: 'Latitud', width: 10 },
+          { header: 'Longitud', width: 10 },
+          { header: 'Imagen', width: 15 }
+        ];
+        
+        const headerRow = ws.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4285F4' } };
+        ws.properties.defaultRowHeight = 70;
+        
+        const imagenes = [];
+        
+        filteredRegistrations.forEach((reg, i) => {
+          const emp = obtenerDatosEmpleado(reg.dni);
+          const row = ws.addRow([
+            i + 1,
+            reg.dni || '',
+            emp.nombre,
+            emp.reparticion,
+            reg.tipo.toUpperCase(),
+            reg.fecha,
+            reg.hora,
+            reg.lat || '',
+            reg.lng || '',
+            esImagenValida(reg.foto) ? 'CARGANDO...' : 'SIN IMAGEN'
+          ]);
+          row.height = 70;
+          
+          if (esImagenValida(reg.foto)) {
+            imagenes.push({ row: i + 2, foto: reg.foto });
+          }
+        });
+        
+        for (let i = 0; i < imagenes.length; i++) {
+          elements.progressText.textContent = `Procesando imagen ${i + 1}/${imagenes.length}`;
+          
+          try {
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = imagenes[i].foto;
+            });
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 100;
+            canvas.height = 70;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, 100, 70);
+            
+            // Calcular dimensiones manteniendo aspecto
+            const imgAspect = img.width / img.height;
+            let drawWidth, drawHeight, offsetX, offsetY;
+            
+            if (imgAspect > 100/70) {
+              drawHeight = 70;
+              drawWidth = 70 * imgAspect;
+              offsetX = (100 - drawWidth) / 2;
+              offsetY = 0;
+              ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            } else {
+              drawWidth = 100;
+              drawHeight = 100 / imgAspect;
+              offsetX = 0;
+              offsetY = (70 - drawHeight) / 2;
+              ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+            }
+            
+            const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+            const imgId = wb.addImage({ base64, extension: 'jpeg' });
+            ws.addImage(imgId, {
+              tl: { col: 9, row: imagenes[i].row - 1 },
+              br: { col: 10, row: imagenes[i].row }
+            });
+            
+          } catch (e) {
+            console.error('Error procesando imagen:', e);
+          }
+        }
+        
+        const buffer = await wb.xlsx.writeBuffer();
+        const nombreArchivo = elements.exportFilename.value || 'registros';
+        saveAs(new Blob([buffer]), `${nombreArchivo}.xlsx`);
+        
+        mostrarLoaderExportacion(false);
+        cerrarModales();
+        alert(`✅ Exportados ${filteredRegistrations.length} registros`);
+        
+      } catch (error) {
+        console.error('Error exportando:', error);
+        alert('❌ Error al exportar');
+        mostrarLoaderExportacion(false);
+      }
+    }
+
+    function mostrarModalExportacion() {
+      elements.exportCountDisplay.textContent = filteredRegistrations.length;
+      elements.imageCountDisplay.textContent = contarImagenes();
+      const rep = currentUser.rol === 'admin' ? 'todos' : currentUser.reparticion.replace(/\s+/g, '-').toLowerCase();
+      elements.exportFilename.value = `registros-${rep}-${new Date().toISOString().split('T')[0]}`;
+      mostrarModal(elements.exportModal);
+    }
+
+    // ========== CARGA DE DATOS DE FIRESTORE ==========
+    function cargarDatosFirestore() {
+      const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'));
+      
+      onSnapshot(q, (snapshot) => {
+        console.log(`📥 ${snapshot.size} registros cargados`);
+        
+        allRegistrations = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const fechaArg = convertirUTCaArgentina(data.createdAt);
+          const { date, time } = formatearFechaHora(data.createdAt);
+          
+          return {
+            id: doc.id,
+            dni: data.dni || 'Sin DNI',
+            lat: data.location?.latitude || data.lat,
+            lng: data.location?.longitude || data.lng,
+            foto: data.photo || data.image,
+            fecha: date,
+            hora: time,
+            fechaArgentina: fechaArg,
+            horaArgentina: fechaArg ? {
+              hour: fechaArg.getHours(),
+              minute: fechaArg.getMinutes()
+            } : null,
+            timestamp: fechaArg ? fechaArg.getTime() : Date.now(),
+            tipo: determinarTipoJornada(data)
+          };
+        });
+        
+        elements.status.className = 'status-message success';
+        elements.status.innerHTML = `✅ ${snapshot.size} registros cargados`;
+        elements.lastUpdate.textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        
+        aplicarFiltros();
+      }, (error) => {
+        console.error('Error:', error);
+        elements.status.className = 'status-message error';
+        elements.status.innerHTML = `❌ Error: ${error.message}`;
+      });
+    }
+
+    // ========== EVENT LISTENERS ==========
+    elements.loginBtn.addEventListener('click', iniciarSesion);
+    
+    elements.passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') iniciarSesion();
+    });
+    
+    elements.usernameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') elements.passwordInput.focus();
+    });
+    
+    elements.logoutBtn.addEventListener('click', cerrarSesion);
+    
+    // Admin tabs
+    elements.adminTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        elements.adminTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        const tabId = tab.dataset.tab;
+        if (tabId === 'usuarios') {
+          elements.tabUsuarios.classList.add('active');
+          elements.tabEmpleados.classList.remove('active');
+        } else {
+          elements.tabEmpleados.classList.add('active');
+          elements.tabUsuarios.classList.remove('active');
+        }
+      });
+    });
+    
+    // Template format selector
+    elements.templateButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        elements.templateButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTemplateFormat = btn.dataset.format;
+      });
+    });
+    
+    // Usuarios
+    elements.downloadTemplateUsuariosBtn.addEventListener('click', descargarPlantillaUsuarios);
+    
+    elements.usuariosFile.addEventListener('change', (e) => {
+      elements.fileNameUsuarios.textContent = e.target.files[0]?.name || 'Ninguno';
+    });
+    
+    elements.uploadUsuariosBtn.addEventListener('click', () => {
+      const file = elements.usuariosFile.files[0];
+      if (!file) {
+        alert('Seleccione un archivo');
+        return;
+      }
+      procesarArchivoUsuarios(file);
+    });
+    
+    // Empleados
+    elements.downloadTemplateEmpleadosBtn.addEventListener('click', descargarPlantillaEmpleados);
+    
+    elements.empleadosFile.addEventListener('change', (e) => {
+      elements.fileNameEmpleados.textContent = e.target.files[0]?.name || 'Ninguno';
+    });
+    
+    elements.uploadEmpleadosBtn.addEventListener('click', () => {
+      const file = elements.empleadosFile.files[0];
+      if (!file) {
+        alert('Seleccione un archivo');
+        return;
+      }
+      procesarArchivoEmpleados(file);
+    });
+    
+    // Filtros
+    elements.search.addEventListener('input', (e) => {
+      currentSearch = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.dateFrom.addEventListener('change', (e) => {
+      currentDateFrom = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.dateTo.addEventListener('change', (e) => {
+      currentDateTo = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.timeStart.addEventListener('change', (e) => {
+      currentTimeStart = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.timeEnd.addEventListener('change', (e) => {
+      currentTimeEnd = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.shiftFilter.addEventListener('change', (e) => {
+      currentShiftFilter = e.target.value;
+      aplicarFiltros();
+    });
+    
+    elements.applyBtn.addEventListener('click', aplicarFiltros);
+    
+    elements.resetBtn.addEventListener('click', () => {
+      elements.search.value = '';
+      const hoy = new Date().toISOString().split('T')[0];
+      elements.dateFrom.value = hoy;
+      elements.dateTo.value = hoy;
+      elements.timeStart.value = '';
+      elements.timeEnd.value = '';
+      elements.shiftFilter.value = 'all';
+      
+      currentSearch = '';
+      currentDateFrom = hoy;
+      currentDateTo = hoy;
+      currentTimeStart = '';
+      currentTimeEnd = '';
+      currentShiftFilter = 'all';
+      
+      aplicarFiltros();
+    });
+    
+    elements.exportBtn.addEventListener('click', mostrarModalExportacion);
+    
+    // Modales
+    elements.closePhoto.addEventListener('click', cerrarModales);
+    elements.closeMap.addEventListener('click', cerrarModales);
+    elements.closeExport.addEventListener('click', cerrarModales);
+    elements.cancelExport.addEventListener('click', cerrarModales);
+    
+    elements.confirmExport.addEventListener('click', exportarExcel);
+    
+    elements.formatButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        elements.formatButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        exportFormat = btn.dataset.format;
+        elements.excelWarning.style.display = exportFormat === 'excel' ? 'block' : 'none';
+      });
+    });
+    
+    // Cerrar modales con ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') cerrarModales();
+    });
+    
+    // Cerrar modales click fuera
+    elements.photoModal.addEventListener('click', (e) => {
+      if (e.target === elements.photoModal) cerrarModales();
+    });
+    
+    elements.mapModal.addEventListener('click', (e) => {
+      if (e.target === elements.mapModal) cerrarModales();
+    });
+    
+    elements.exportModal.addEventListener('click', (e) => {
+      if (e.target === elements.exportModal) cerrarModales();
+    });
+
+    // Reloj
+    function actualizarHora() {
+      elements.currentTime.textContent = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    }
+    actualizarHora();
+    setInterval(actualizarHora, 1000);
   </script>
 </body>
 </html>
-``
