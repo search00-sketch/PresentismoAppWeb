@@ -15,7 +15,6 @@
   <!-- Papa Parse para leer CSV -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    /* Mismo estilo que antes, manteniendo todo igual */
     :root {
       --primary-color: #4285f4;
       --secondary-color: #34a853;
@@ -1345,15 +1344,19 @@
   <script type="module">
     console.log("🚀 Inicializando sistema...");
 
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+        initializeApp 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import {
-      getFirestore,
-      collection,
-      onSnapshot,
-      query,
-      orderBy,
-      Timestamp,
-      getDocs
+        getFirestore,
+        collection,
+        doc,
+        setDoc,
+        getDocs,
+        onSnapshot,
+        query,
+        orderBy,
+        Timestamp
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // Configuración Firebase
@@ -1375,60 +1378,244 @@
       console.error("❌ Error inicializando Firebase:", error);
     }
 
-    // ========== BASES DE DATOS ==========
-    let usuariosDB = {
-      "admin": {
-        password: "admin123",
-        nombre: "Administrador",
-        reparticion: "Sistema",
-        rol: "admin"
-      }
-    };
-
+    // ========== BASES DE DATOS EN FIRESTORE ==========
+    // Variables locales como caché temporal
+    let usuariosDB = {};
     let empleadosDB = {};
 
-    // ========== PERSISTENCIA ==========
-    function guardarUsuarios() {
-      localStorage.setItem('usuariosDB', JSON.stringify(usuariosDB));
+    // ========== FUNCIONES PARA USUARIOS EN FIRESTORE ==========
+
+    // Cargar usuarios desde Firestore
+    async function cargarUsuariosDesdeFirestore() {
+        if (!db) return;
+        
+        try {
+            const usuariosRef = collection(db, 'usuarios');
+            const snapshot = await getDocs(usuariosRef);
+            
+            // Limpiar usuariosDB local y recargar desde Firestore
+            usuariosDB = {};
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                usuariosDB[doc.id] = {
+                    password: data.password,
+                    nombre: data.nombre,
+                    reparticion: data.reparticion,
+                    rol: data.rol
+                };
+            });
+            
+            // Si no hay usuarios, crear el admin por defecto
+            if (Object.keys(usuariosDB).length === 0) {
+                await crearUsuarioAdminPorDefecto();
+            }
+            
+            console.log(`✅ Usuarios cargados desde Firestore: ${Object.keys(usuariosDB).length}`);
+            actualizarVistaPreviaUsuarios();
+            actualizarEstadisticasUsuarios();
+            
+        } catch (error) {
+            console.error("Error cargando usuarios desde Firestore:", error);
+        }
     }
 
-    function cargarUsuarios() {
-      const stored = localStorage.getItem('usuariosDB');
-      if (stored) {
+    // Crear usuario admin por defecto
+    async function crearUsuarioAdminPorDefecto() {
         try {
-          usuariosDB = JSON.parse(stored);
-          if (!usuariosDB['admin']) {
+            const adminRef = doc(db, 'usuarios', 'admin');
+            await setDoc(adminRef, {
+                password: "admin123",
+                nombre: "Administrador",
+                reparticion: "Sistema",
+                rol: "admin"
+            });
+            
             usuariosDB['admin'] = {
-              password: "admin123",
-              nombre: "Administrador",
-              reparticion: "Sistema",
-              rol: "admin"
+                password: "admin123",
+                nombre: "Administrador",
+                reparticion: "Sistema",
+                rol: "admin"
             };
-            guardarUsuarios();
-          }
-        } catch (e) {
-          console.error("Error cargando usuarios:", e);
+            
+            console.log("✅ Usuario admin creado por defecto");
+        } catch (error) {
+            console.error("Error creando usuario admin:", error);
         }
-      }
     }
 
-    function guardarEmpleados() {
-      localStorage.setItem('empleadosDB', JSON.stringify(empleadosDB));
-    }
-
-    function cargarEmpleados() {
-      const stored = localStorage.getItem('empleadosDB');
-      if (stored) {
+    // Guardar usuario en Firestore
+    async function guardarUsuarioEnFirestore(username, userData) {
         try {
-          empleadosDB = JSON.parse(stored);
-        } catch (e) {
-          console.error("Error cargando empleados:", e);
+            const userRef = doc(db, 'usuarios', username);
+            await setDoc(userRef, userData);
+            console.log(`✅ Usuario ${username} guardado en Firestore`);
+            return true;
+        } catch (error) {
+            console.error(`Error guardando usuario ${username}:`, error);
+            return false;
         }
-      }
     }
 
-    cargarUsuarios();
-    cargarEmpleados();
+    // ========== FUNCIONES PARA EMPLEADOS EN FIRESTORE ==========
+
+    // Cargar empleados desde Firestore
+    async function cargarEmpleadosDesdeFirestore() {
+        if (!db) return;
+        
+        try {
+            const empleadosRef = collection(db, 'empleados');
+            const snapshot = await getDocs(empleadosRef);
+            
+            // Limpiar empleadosDB local y recargar desde Firestore
+            empleadosDB = {};
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                empleadosDB[doc.id] = {
+                    nombre: data.nombre,
+                    reparticion: data.reparticion
+                };
+            });
+            
+            console.log(`✅ Empleados cargados desde Firestore: ${Object.keys(empleadosDB).length}`);
+            actualizarVistaPreviaEmpleados();
+            actualizarEstadisticasEmpleados();
+            
+        } catch (error) {
+            console.error("Error cargando empleados desde Firestore:", error);
+        }
+    }
+
+    // Guardar empleado en Firestore
+    async function guardarEmpleadoEnFirestore(dni, empleadoData) {
+        try {
+            const empleadoRef = doc(db, 'empleados', dni);
+            await setDoc(empleadoRef, empleadoData);
+            console.log(`✅ Empleado ${dni} guardado en Firestore`);
+            return true;
+        } catch (error) {
+            console.error(`Error guardando empleado ${dni}:`, error);
+            return false;
+        }
+    }
+
+    // Procesar archivo de usuarios y guardar en Firestore
+    async function procesarArchivoUsuarios(file) {
+        const extension = file.name.split('.').pop().toLowerCase();
+        
+        const procesar = async (data) => {
+            let count = 0;
+            let errors = 0;
+            
+            // Mostrar indicador de carga
+            elements.status.className = 'status-message loading';
+            elements.status.innerHTML = `⏳ Guardando ${data.length} usuarios en Firestore...`;
+            
+            for (const row of data) {
+                if (row.usuario && row.password && row.nombre && row.reparticion && row.rol) {
+                    try {
+                        await guardarUsuarioEnFirestore(row.usuario, {
+                            password: row.password,
+                            nombre: row.nombre,
+                            reparticion: row.reparticion,
+                            rol: row.rol
+                        });
+                        count++;
+                    } catch (e) {
+                        console.error("Error guardando usuario:", row.usuario, e);
+                        errors++;
+                    }
+                }
+            }
+            
+            if (count > 0) {
+                // Recargar usuarios desde Firestore
+                await cargarUsuariosDesdeFirestore();
+                
+                elements.status.className = 'status-message success';
+                elements.status.innerHTML = `✅ ${count} usuarios guardados en la nube${errors > 0 ? ` (${errors} errores)` : ''}`;
+                
+                alert(`✅ ${count} usuarios guardados permanentemente en Firestore`);
+                elements.fileNameUsuarios.textContent = 'Ninguno';
+                elements.usuariosFile.value = '';
+            } else {
+                alert('⚠️ No se encontraron datos válidos en el archivo');
+                elements.status.className = 'status-message error';
+                elements.status.innerHTML = '❌ Error: No hay datos válidos';
+            }
+        };
+
+        if (extension === 'csv') {
+            Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                procesar(XLSX.utils.sheet_to_json(ws));
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    }
+
+    // Procesar archivo de empleados y guardar en Firestore
+    async function procesarArchivoEmpleados(file) {
+        const extension = file.name.split('.').pop().toLowerCase();
+        
+        const procesar = async (data) => {
+            let count = 0;
+            let errors = 0;
+            
+            // Mostrar indicador de carga
+            elements.status.className = 'status-message loading';
+            elements.status.innerHTML = `⏳ Guardando ${data.length} empleados en Firestore...`;
+            
+            for (const row of data) {
+                if (row.dni && row.nombre && row.reparticion) {
+                    try {
+                        await guardarEmpleadoEnFirestore(String(row.dni).trim(), {
+                            nombre: row.nombre.trim(),
+                            reparticion: row.reparticion.trim()
+                        });
+                        count++;
+                    } catch (e) {
+                        console.error("Error guardando empleado:", row.dni, e);
+                        errors++;
+                    }
+                }
+            }
+            
+            if (count > 0) {
+                // Recargar empleados desde Firestore
+                await cargarEmpleadosDesdeFirestore();
+                aplicarFiltros();
+                
+                elements.status.className = 'status-message success';
+                elements.status.innerHTML = `✅ ${count} empleados guardados en la nube${errors > 0 ? ` (${errors} errores)` : ''}`;
+                
+                alert(`✅ ${count} empleados guardados permanentemente en Firestore`);
+                elements.fileNameEmpleados.textContent = 'Ninguno';
+                elements.empleadosFile.value = '';
+            } else {
+                alert('⚠️ No se encontraron datos válidos en el archivo');
+                elements.status.className = 'status-message error';
+                elements.status.innerHTML = '❌ Error: No hay datos válidos';
+            }
+        };
+
+        if (extension === 'csv') {
+            Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                procesar(XLSX.utils.sheet_to_json(ws));
+            };
+            reader.readAsArrayBuffer(file);
+        }
+    }
 
     // ========== ELEMENTOS DOM ==========
     const elements = {
@@ -1536,7 +1723,7 @@
     }
 
     // ========== FUNCIONES DE AUTENTICACIÓN ==========
-    function iniciarSesion() {
+    async function iniciarSesion() {
       const username = elements.usernameInput.value.trim();
       const password = elements.passwordInput.value.trim();
       
@@ -1547,16 +1734,19 @@
 
       console.log(`🔐 Intentando login con usuario: ${username}`);
 
+      // Asegurar que tenemos los usuarios cargados
+      await cargarUsuariosDesdeFirestore();
+
       const usuario = usuariosDB[username];
       
       if (usuario && usuario.password === password) {
         console.log(`✅ Login exitoso para: ${username}`);
         
         currentUser = {
-          username: username,
-          nombre: usuario.nombre,
-          reparticion: usuario.reparticion,
-          rol: usuario.rol
+            username: username,
+            nombre: usuario.nombre,
+            reparticion: usuario.reparticion,
+            rol: usuario.rol
         };
         
         elements.userNombre.textContent = currentUser.nombre;
@@ -1569,20 +1759,18 @@
         
         // Solo mostrar panel de admin si el usuario es administrador
         if (currentUser.rol === 'admin') {
-          elements.adminPanel.classList.remove('hidden');
-          actualizarVistaPreviaUsuarios();
-          actualizarVistaPreviaEmpleados();
-          actualizarEstadisticasUsuarios();
-          actualizarEstadisticasEmpleados();
+            elements.adminPanel.classList.remove('hidden');
+            // Cargar datos desde Firestore
+            await cargarUsuariosDesdeFirestore();
+            await cargarEmpleadosDesdeFirestore();
         } else {
-          elements.adminPanel.classList.add('hidden');
+            elements.adminPanel.classList.add('hidden');
+            await cargarEmpleadosDesdeFirestore();
         }
         
-        // Establecer fecha actual por defecto (hoy para HASTA y 7 días antes para DESDE)
+        // Establecer fecha actual por defecto
         const hoy = new Date();
         const fechaHoy = hoy.toISOString().split('T')[0];
-        
-        // Calcular fecha 7 días antes
         const semanaPasada = new Date(hoy);
         semanaPasada.setDate(hoy.getDate() - 7);
         const fechaSemanaPasada = semanaPasada.toISOString().split('T')[0];
@@ -1598,14 +1786,13 @@
         
         elements.usernameInput.value = '';
         elements.passwordInput.value = '';
-        // Resetear tipo de password
         elements.passwordInput.setAttribute('type', 'password');
         elements.togglePassword.textContent = '👁️';
-      } else {
+    } else {
         console.error(`❌ Login fallido para usuario: ${username}`);
         alert('❌ Usuario o contraseña incorrectos');
-      }
     }
+}
 
     function cerrarSesion() {
       console.log("👋 Cerrando sesión");
@@ -1616,7 +1803,7 @@
       filteredRegistrations = [];
     }
 
-    // ========== FUNCIONES DE USUARIOS ==========
+    // ========== FUNCIONES DE USUARIOS (VISTA PREVIA) ==========
     function descargarPlantillaUsuarios() {
       const fecha = new Date().toISOString().split('T')[0];
       const headers = ['usuario', 'password', 'nombre', 'reparticion', 'rol'];
@@ -1631,46 +1818,6 @@
         const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
         XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
         XLSX.writeFile(wb, `usuarios-${fecha}.xlsx`);
-      }
-    }
-
-    function procesarArchivoUsuarios(file) {
-      const extension = file.name.split('.').pop().toLowerCase();
-      
-      const procesar = (data) => {
-        let count = 0;
-        data.forEach(row => {
-          if (row.usuario && row.password && row.nombre && row.reparticion && row.rol) {
-            usuariosDB[row.usuario] = {
-              password: row.password,
-              nombre: row.nombre,
-              reparticion: row.reparticion,
-              rol: row.rol
-            };
-            count++;
-          }
-        });
-        
-        if (count > 0) {
-          guardarUsuarios();
-          actualizarVistaPreviaUsuarios();
-          actualizarEstadisticasUsuarios();
-          alert(`✅ ${count} usuarios cargados`);
-          elements.fileNameUsuarios.textContent = 'Ninguno';
-          elements.usuariosFile.value = '';
-        }
-      };
-
-      if (extension === 'csv') {
-        Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const wb = XLSX.read(e.target.result, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          procesar(XLSX.utils.sheet_to_json(ws));
-        };
-        reader.readAsArrayBuffer(file);
       }
     }
 
@@ -1700,7 +1847,7 @@
       elements.totalUsuariosReparticiones.textContent = new Set(usuarios.map(u => u.reparticion)).size;
     }
 
-    // ========== FUNCIONES DE EMPLEADOS ==========
+    // ========== FUNCIONES DE EMPLEADOS (VISTA PREVIA) ==========
     function descargarPlantillaEmpleados() {
       const fecha = new Date().toISOString().split('T')[0];
       const headers = ['dni', 'nombre', 'reparticion'];
@@ -1715,45 +1862,6 @@
         const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
         XLSX.utils.book_append_sheet(wb, ws, 'Empleados');
         XLSX.writeFile(wb, `empleados-${fecha}.xlsx`);
-      }
-    }
-
-    function procesarArchivoEmpleados(file) {
-      const extension = file.name.split('.').pop().toLowerCase();
-      
-      const procesar = (data) => {
-        let count = 0;
-        data.forEach(row => {
-          if (row.dni && row.nombre && row.reparticion) {
-            empleadosDB[String(row.dni).trim()] = {
-              nombre: row.nombre.trim(),
-              reparticion: row.reparticion.trim()
-            };
-            count++;
-          }
-        });
-        
-        if (count > 0) {
-          guardarEmpleados();
-          actualizarVistaPreviaEmpleados();
-          actualizarEstadisticasEmpleados();
-          aplicarFiltros();
-          alert(`✅ ${count} empleados cargados`);
-          elements.fileNameEmpleados.textContent = 'Ninguno';
-          elements.empleadosFile.value = '';
-        }
-      };
-
-      if (extension === 'csv') {
-        Papa.parse(file, { header: true, complete: (r) => procesar(r.data) });
-      } else {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const wb = XLSX.read(e.target.result, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          procesar(XLSX.utils.sheet_to_json(ws));
-        };
-        reader.readAsArrayBuffer(file);
       }
     }
 
@@ -2185,7 +2293,7 @@
       mostrarModal(elements.exportModal);
     }
 
-    // ========== CARGA DE DATOS DE FIRESTORE ==========
+    // ========== CARGA DE DATOS DE FIRESTORE (REGISTROS) ==========
     function cargarDatosFirestore() {
       if (!db) {
         console.error("❌ Firebase no está inicializado");
@@ -2250,6 +2358,16 @@
           elements.status.innerHTML = `❌ Error: ${error.message}`;
         });
     }
+
+    // ========== INICIALIZAR DATOS DESDE FIRESTORE ==========
+    async function inicializarDatos() {
+        await cargarUsuariosDesdeFirestore();
+        await cargarEmpleadosDesdeFirestore();
+        console.log("✅ Datos iniciales cargados desde Firestore");
+    }
+
+    // Llamar a la inicialización
+    inicializarDatos();
 
     // ========== EVENT LISTENERS ==========
     elements.loginBtn.addEventListener('click', iniciarSesion);
